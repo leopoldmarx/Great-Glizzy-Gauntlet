@@ -1,0 +1,32 @@
+# Docker
+.dockerignore
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+
+# Build artifacts
+*.tar
+costcoride.tar
+
+# Data files (keep locally, not in repo)
+*.gsheet
+*.csv
+Distance table*
+Great Glizzy Gauntlet Email List*

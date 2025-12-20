@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  web:
+    image: costcoride:latest
+    container_name: costcoride
+    ports:
+      - "36969:80"
+    restart: unless-stopped

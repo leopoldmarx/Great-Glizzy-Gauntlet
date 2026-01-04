@@ -36,8 +36,10 @@
     <nav class="navbar">
         <div class="container">
             <div class="nav-brand">
-                <img src="costco_logo.png" alt="Costco Logo" class="nav-logo">
-                🌭 Great Glizzy Gauntlet
+                <span class="glizzy-emoji">🌭</span>
+                <img src="GGG Bike Logo.png" alt="GGG Bike Logo" class="nav-logo">
+                <span class="glizzy-emoji">🌭</span>
+                <!-- 🌭 Great Glizzy Gauntlet -->
             </div>
         </div>
     </nav>
@@ -45,9 +47,16 @@
     <header class="hero">
         <div class="hero-content">
             <h1 class="hero-title">
-                <span class="glizzy-emoji">🌭</span>
-                Great Glizzy Gauntlet
-                <span class="glizzy-emoji">🌭</span>
+                <span class="glizzy-emoji desktop-emoji">🌭</span>
+                <span class="hero-title-line">
+                    <span class="glizzy-emoji mobile-emoji">🌭</span>
+                    Great
+                    <span class="glizzy-emoji mobile-emoji">🌭</span>
+                </span>
+                <span class="hero-title-line mobile-break-line">
+                    Glizzy Gauntlet
+                </span>
+                <span class="glizzy-emoji desktop-emoji">🌭</span>
             </h1>
             <p class="hero-subtitle">10 Costcos • 95 Miles • 3 Counties • 1 Legendary Ride</p>
             <div id="countdown" class="countdown">
@@ -174,6 +183,9 @@
                         <li><strong>Same Day:</strong> All 10 stops must be completed on the same day</li>
                         <li><strong>Self-Powered:</strong> Ride must be completed on a bicycle (e-bikes tolerated, though it might be hard to eat so much if you're not exerting yourself!)</li>
                     </ol>
+                    <p style="margin-top: 1rem; padding: 1rem; background: rgba(255, 199, 44, 0.1); border-left: 4px solid var(--accent-color); border-radius: 5px;">
+                        <strong>📱 Highly Recommended:</strong> A GPS head unit with the route downloaded. The route has many turns and a GPS device will make navigation much easier and safer. Download from <a href="https://ridewithgps.com/routes/53521603" target="_blank" style="color: var(--secondary-color); text-decoration: underline; font-weight: 600;">Ride with GPS</a>.
+                    </p>
                 </div>
 
                 <div class="rule-card">
@@ -625,6 +637,11 @@
                     <h3>What if I get a flat tire or mechanical issue?</h3>
                     <p>You're responsible for your own repairs - bring spare tubes, tire levers, and a pump or CO2 cartridges. Fellow riders may help if they can, but don't count on it. This is a self-supported ride!</p>
                 </div>
+                
+                <div class="rule-card">
+                    <h3>Do I need a GPS device?</h3>
+                    <p><strong>Highly recommended!</strong> The route has many turns and follows bike trails and roads throughout the Wasatch Front. A GPS head unit (Garmin, Wahoo, etc.) with the route downloaded will provide turn-by-turn navigation and make the ride much safer and more enjoyable. Download the route from <strong><a href="https://ridewithgps.com/routes/53521603" target="_blank" class="survey-link">Ride with GPS</a></strong> before the event. If you don't have a GPS unit, make sure to have the route loaded on your phone with offline maps, but a dedicated GPS device is strongly recommended.</p>
+                </div>
             
                 <div class="rule-card">
                     <h3>Do I need to submit proof of completion?</h3>
@@ -640,6 +657,9 @@
             <p>Pack your cycling gear and prepare for the most delicious challenge in Utah!</p>
             <p class="disclaimer">
                 <strong>Remember to bring:</strong> water bottles, spare tubes, bike lights, sunscreen, helmet, phone, and appetite!
+            </p>
+            <p class="disclaimer" style="margin-top: 1rem;">
+                <strong>📱 Highly Recommended:</strong> A GPS head unit (Garmin, Wahoo, etc.) with the route downloaded. The route is complex with many turns, and having turn-by-turn navigation will make your ride much safer and more enjoyable. Download the route from <a href="https://ridewithgps.com/routes/53521603" target="_blank" style="color: var(--accent-color); text-decoration: underline;">Ride with GPS</a> before the event!
             </p>
         </div>
     </section>
@@ -841,6 +861,7 @@
                 behavior: 'smooth'
             });
         });
+
     </script>
 </body>
 </html>

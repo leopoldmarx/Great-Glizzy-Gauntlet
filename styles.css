@@ -1308,3 +1308,26 @@ body {
         font-size: 1.3rem;
     }
 }
+/* Food Court Hours Notice */
+.food-court-hours-notice {
+    background: linear-gradient(135deg, #fff9e6 0%, #fffef7 100%);
+    border: 2px solid var(--accent-color);
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.food-court-hours-notice h3 {
+    color: var(--secondary-color);
+    margin-bottom: 0.75rem;
+    font-size: 1.3rem;
+}
+
+.food-court-hours-notice p {
+    margin: 0.25rem 0;
+    color: var(--text-dark);
+}

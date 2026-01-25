@@ -6,9 +6,6 @@ COPY verify.html /usr/share/nginx/html/
 COPY results.html /usr/share/nginx/html/
 COPY admin.html /usr/share/nginx/html/
 
-# Copy admin config (ensure this is in .gitignore!)
-COPY admin-config.js /usr/share/nginx/html/
-
 # Copy stylesheets
 COPY styles.css /usr/share/nginx/html/
 
@@ -25,8 +22,12 @@ COPY ggg-bike-logo.png /usr/share/nginx/html/
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Copy entrypoint script and fix line endings (Windows -> Unix)
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
+
 # Expose port 80
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint to generate config from env vars, then start nginx
+ENTRYPOINT ["/docker-entrypoint.sh"]

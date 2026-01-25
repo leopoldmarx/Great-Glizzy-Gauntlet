@@ -21,6 +21,9 @@ npm-debug.log*
 .env
 .env.local
 
+# Admin secrets (local dev only - production uses env vars)
+admin-config.js
+
 # Build artifacts
 *.tar
 costcoride.tar

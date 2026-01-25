@@ -199,16 +199,55 @@ SSL/HTTPS is handled by a reverse proxy (Portainer/Traefik). The container expos
 
 ## Deployment
 
-### Production (Portainer)
-The production deployment uses Portainer to pull from this repository. Changes pushed to the repository will be deployed when Portainer rebuilds the stack.
+### Production (Portainer with Git)
 
-1. Push changes to repository
-2. Portainer detects changes and rebuilds
-3. New container deployed automatically
+The production deployment uses Portainer to pull from GitHub. Admin credentials are passed via environment variables.
 
-### Manual Deployment
+**Setup Steps:**
+
+1. **In Portainer**, create a new Stack from Git repository
+2. **Repository URL**: `https://github.com/your-username/costco-ride`
+3. **Add Environment Variables** in the Portainer stack settings:
+   ```
+   ADMIN_PASSWORD_HASH=your_sha256_hash_here
+   ADMIN_TOKEN=your_uuid_token_here
+   ```
+4. Deploy the stack
+
+**To generate your credentials:**
+```javascript
+// Run in browser console:
+
+// 1. Generate password hash
+async function hash(p) {
+  const d = new TextEncoder().encode(p);
+  const h = await crypto.subtle.digest('SHA-256', d);
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+await hash('your-password-here');
+
+// 2. Generate admin token
+crypto.randomUUID();
+```
+
+**Important**: The same `ADMIN_TOKEN` must be added to your Google Apps Script project:
+- Go to Project Settings > Script Properties
+- Add: `ADMIN_TOKEN` = `your-uuid-token`
+
+### Local Development
+
+1. Copy `.env.example` to `.env` and fill in your values
+2. Run:
 ```bash
 docker compose down && docker compose build --no-cache && docker compose up -d
+```
+
+Or create `admin-config.js` manually (this file is gitignored):
+```javascript
+const GGG_ADMIN_CONFIG = {
+    passwordHash: 'your_sha256_hash',
+    adminToken: 'your_uuid_token'
+};
 ```
 
 ## Route Details

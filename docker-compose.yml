@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   web:
     build: .
@@ -7,3 +6,8 @@ services:
     ports:
       - "36969:80"
     restart: unless-stopped
+    environment:
+      # For local dev, set these or use .env file
+      # For Portainer, set these in the stack environment variables
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}

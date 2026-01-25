@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results | Great Glizzy Gauntlet</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Official results and leaderboard for the Great Glizzy Gauntlet - Utah's epic 100-mile, 10-Costco cycling challenge. See who conquered the gauntlet!">
+    <meta name="keywords" content="Great Glizzy Gauntlet results, cycling leaderboard, Costco challenge, Utah cycling, century ride results">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ggg.lmarx.com/results">
+    <meta property="og:title" content="Results & Leaderboard | Great Glizzy Gauntlet">
+    <meta property="og:description" content="See who conquered the Great Glizzy Gauntlet - 100 miles, 10 Costcos, infinite glory!">
+    <meta property="og:image" content="https://ggg.lmarx.com/costco_outside_square.jpg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://ggg.lmarx.com/results">
+    <meta property="twitter:title" content="Results & Leaderboard | Great Glizzy Gauntlet">
+    <meta property="twitter:description" content="See who conquered the Great Glizzy Gauntlet!">
+    <meta property="twitter:image" content="https://ggg.lmarx.com/costco_outside_square.jpg">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://ggg.lmarx.com/results">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌭</text></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* Page-specific overrides */
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            text-decoration: none;
+        }
+
+        .nav-links a {
+            color: var(--text-dark);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover { color: var(--primary-color); }
+
+        .container {
+            max-width: 1100px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* CTA section specific to results page */
+        .results-cta {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #c4122f 100%);
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .results-cta h2 { margin-bottom: 1rem; color: white; }
+
+        .results-cta .btn {
+            background: var(--accent-color);
+            color: var(--dark);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .footer a { color: var(--secondary-color); }
+
+        /* Loading without display:none */
+        .loading { display: block; }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .nav-links a { margin-left: 1rem; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-brand">
+                <span>🌭</span> Great Glizzy Gauntlet
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/verify">Verify</a>
+                <a href="/results">Results</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>🏆 Official Results</h1>
+        <p class="subtitle">Verified completions of the Great Glizzy Gauntlet</p>
+        
+        <h2 class="year-title">2026 Season</h2>
+        
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card">
+                <div class="number" id="totalRiders">-</div>
+                <div class="label">Total Finishers</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="fullCompletions">-</div>
+                <div class="label">10/10 Completions</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="spanishForkCount">-</div>
+                <div class="label">Spanish Fork Extensions</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="fastestTime">-</div>
+                <div class="label">Fastest Time</div>
+            </div>
+        </div>
+        
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading results...</p>
+        </div>
+        
+        <!-- Results Table -->
+        <div class="results-card" id="resultsCard" style="display: none;">
+            <h2>🌭 2026 Finishers</h2>
+            
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Rider</th>
+                        <th>Date</th>
+                        <th>Costcos</th>
+                        <th>Time</th>
+                        <th>Avg MPH</th>
+                        <th>Achievements</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="icon">🚴</div>
+            <h3>No results yet for 2026</h3>
+            <p>The event is May 2, 2026. Be the first to complete the challenge!</p>
+        </div>
+        
+        <!-- CTA -->
+        <div class="results-cta">
+            <h2>Completed the Challenge?</h2>
+            <p style="margin-bottom: 1.5rem;">Upload your GPX file to verify your ride and get on the leaderboard!</p>
+            <a href="/verify" class="btn">🔍 Verify My Ride</a>
+        </div>
+        
+        <div class="footer">
+            <p>Results are verified via GPS data and approved manually.</p>
+            <p style="margin-top: 0.5rem;">
+                Questions? Contact <a href="mailto:ggg@lmarx.com">ggg@lmarx.com</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================
+        // CONFIGURATION
+        // =====================================================
+        
+        const RESULTS_URL = 'https://script.google.com/macros/s/AKfycbw_BFeql6NA_C6R9rdEse6lBZ99fgAQsnn0NxfGWYSKaxIWWBG4RMaIqXhOVCtGi5c/exec?action=getResults';
+        
+        // Fixed to 2026 for now
+        const CURRENT_YEAR = 2026;
+        
+        // Badge mapping
+        const BADGE_MAP = {
+            'hotdog_purist': { label: '🌭', title: 'Hot Dog Purist', class: 'badge-hotdog' },
+            'pizza_party': { label: '🍕', title: 'Pizza Party', class: 'badge-pizza' },
+            'menu_master': { label: '🎭', title: 'Menu Master', class: 'badge-menu' },
+            'sample_collector': { label: '🧪', title: 'Sample Collector', class: 'badge-sample' },
+            'speed_demon': { label: '⚡', title: 'Speed Demon', class: 'badge-speed' },
+            'spanish_fork': { label: '🏔️', title: 'Spanish Fork', class: 'badge-spanish' }
+        };
+        
+        // =====================================================
+        // INITIALIZATION
+        // =====================================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadResults(CURRENT_YEAR);
+        });
+        
+        // =====================================================
+        // DATA LOADING
+        // =====================================================
+        
+        async function loadResults(year) {
+            const loading = document.getElementById('loading');
+            const resultsCard = document.getElementById('resultsCard');
+            const emptyState = document.getElementById('emptyState');
+            
+            loading.style.display = 'block';
+            resultsCard.style.display = 'none';
+            emptyState.style.display = 'none';
+            
+            try {
+                let data;
+                
+                try {
+                    const response = await fetch(`${RESULTS_URL}&year=${year}`);
+                    data = await response.json();
+                } catch (fetchError) {
+                    console.log('API not available, showing empty state');
+                    data = [];
+                }
+                
+                loading.style.display = 'none';
+                
+                if (!data || data.length === 0) {
+                    emptyState.style.display = 'block';
+                    updateStats([], year);
+                } else {
+                    resultsCard.style.display = 'block';
+                    displayResults(data, year);
+                    updateStats(data, year);
+                }
+                
+            } catch (err) {
+                console.error('Error loading results:', err);
+                loading.style.display = 'none';
+                emptyState.style.display = 'block';
+            }
+        }
+        
+        function updateStats(data, year) {
+            document.getElementById('totalRiders').textContent = data.length || '0';
+            document.getElementById('fullCompletions').textContent = 
+                data.filter(r => r.costcosVisited >= 10).length || '0';
+            document.getElementById('spanishForkCount').textContent = 
+                data.filter(r => r.bonuses && r.bonuses.includes('spanish_fork')).length || '0';
+            
+            // Find fastest time (prefer elapsedTime, fall back to movingTime)
+            const times = data
+                .map(r => {
+                    // Try elapsedTime first (milliseconds format)
+                    let ms = parseInt(r.elapsedTime);
+                    if (!isNaN(ms) && ms > 1000000) {
+                        return { ms, formatted: formatMovingTime(ms) };
+                    }
+                    // Fall back to movingTime
+                    ms = parseInt(r.movingTime);
+                    if (!isNaN(ms) && ms > 0) {
+                        return { ms, formatted: formatMovingTime(ms) };
+                    }
+                    return null;
+                })
+                .filter(t => t && t.formatted)
+                .sort((a, b) => a.ms - b.ms);
+
+            document.getElementById('fastestTime').textContent = times[0]?.formatted || '-';
+        }
+        
+        function displayResults(data, year) {
+            const tbody = document.getElementById('resultsBody');
+            
+            // Sort by time (fastest first), then by costcos visited
+            data.sort((a, b) => {
+                // First, prioritize 10/10 completions
+                if (b.costcosVisited !== a.costcosVisited) {
+                    return b.costcosVisited - a.costcosVisited;
+                }
+
+                // Then sort by elapsedTime or movingTime (milliseconds)
+                const getTime = (r) => {
+                    const elapsed = parseInt(r.elapsedTime);
+                    if (!isNaN(elapsed) && elapsed > 1000000) return elapsed;
+                    const moving = parseInt(r.movingTime);
+                    if (!isNaN(moving) && moving > 0) return moving;
+                    return Infinity;
+                };
+                return getTime(a) - getTime(b);
+            });
+            
+            tbody.innerHTML = data.map((rider, index) => {
+                const rank = index + 1;
+                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+                
+                const costcoClass = rider.costcosVisited >= 10 ? 'complete' : '';
+                
+                const badges = (rider.bonuses || []).map(b => {
+                    const badge = BADGE_MAP[b];
+                    if (badge) {
+                        return `<span class="badge ${badge.class}" title="${badge.title}">${badge.label}</span>`;
+                    }
+                    return '';
+                }).join('');
+                
+                const stravaLink = rider.stravaLink 
+                    ? `<a href="${rider.stravaLink}" target="_blank" class="strava-link">View</a>`
+                    : '-';
+                
+                const avgSpeed = rider.avgSpeed || '-';
+                
+                return `
+                    <tr>
+                        <td class="rank ${rankClass}">${rankIcon}</td>
+                        <td class="rider-name">${escapeHtml(rider.name)}</td>
+                        <td>${formatDate(rider.rideDate)}</td>
+                        <td class="costco-count ${costcoClass}">${rider.costcosVisited}/10</td>
+                        <td class="time-cell">${formatElapsedTime(rider.elapsedTime) || formatMovingTime(rider.movingTime) || '-'}</td>
+                        <td class="speed-cell">${avgSpeed}</td>
+                        <td>${badges || '-'}</td>
+                        <td>${stravaLink}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // =====================================================
+        // UTILITIES
+        // =====================================================
+        
+        function formatMovingTime(ms) {
+            if (!ms || ms === '-' || ms === 0) return null;
+
+            // Convert milliseconds to H:MM:SS format
+            const totalMs = parseInt(ms);
+            if (isNaN(totalMs)) return null;
+
+            const hours = Math.floor(totalMs / (1000 * 60 * 60));
+            const minutes = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((totalMs % (1000 * 60)) / 1000);
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function formatElapsedTime(value) {
+            if (!value || value === '-') return null;
+
+            // Handle milliseconds (new format)
+            const ms = parseInt(value);
+            if (!isNaN(ms) && ms > 1000000) {
+                // Likely milliseconds (>16 minutes)
+                return formatMovingTime(ms);
+            }
+
+            // Handle legacy H:MM format - convert to H:MM:SS
+            if (typeof value === 'string' && value.includes(':')) {
+                const parts = value.split(':');
+                if (parts.length === 2) {
+                    // Legacy H:MM format, add :00 for seconds
+                    return `${parts[0]}:${parts[1].padStart(2, '0')}:00`;
+                }
+                return value; // Already H:MM:SS or other format
+            }
+
+            return null;
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+    </script>
+</body>
+</html>

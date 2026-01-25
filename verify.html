@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Ride | Great Glizzy Gauntlet</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Upload your GPX file to verify your Great Glizzy Gauntlet completion. Get on the official leaderboard by proving you visited all 10 Costcos!">
+    <meta name="keywords" content="GPX verification, cycling challenge, Costco ride, Great Glizzy Gauntlet, Utah cycling">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ggg.lmarx.com/verify">
+    <meta property="og:title" content="Verify Your Ride | Great Glizzy Gauntlet">
+    <meta property="og:description" content="Upload your GPX file to verify your Great Glizzy Gauntlet completion and get on the official leaderboard!">
+    <meta property="og:image" content="https://ggg.lmarx.com/costco_outside_square.jpg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://ggg.lmarx.com/verify">
+    <meta property="twitter:title" content="Verify Your Ride | Great Glizzy Gauntlet">
+    <meta property="twitter:description" content="Upload your GPX file to verify your Great Glizzy Gauntlet completion!">
+    <meta property="twitter:image" content="https://ggg.lmarx.com/costco_outside_square.jpg">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://ggg.lmarx.com/verify">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌭</text></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* Page-specific overrides */
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            text-decoration: none;
+        }
+
+        .nav-links a {
+            color: var(--text-dark);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover { color: var(--primary-color); }
+
+        .container {
+            max-width: 900px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .footer a { color: var(--secondary-color); }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .nav-links a { margin-left: 1rem; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-brand">
+                <span>🌭</span> Great Glizzy Gauntlet
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/verify">Verify</a>
+                <a href="/results">Results</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>🚴 Verify Your Ride</h1>
+        <p class="subtitle">Upload your GPX file to verify your Glizzy Gauntlet completion</p>
+        
+        <!-- Step 1: Upload -->
+        <div class="card" id="uploadCard">
+            <h2><span class="step-number">1</span> Upload Your GPX File</h2>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📍</div>
+                <h3>Drop your GPX file here</h3>
+                <p>or click to browse</p>
+                <input type="file" id="gpxFile" accept=".gpx">
+            </div>
+            
+            <div class="file-info" id="fileInfo">
+                <span class="filename" id="fileName"></span>
+                <span id="fileSize"></span>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" id="verifyBtn" disabled>
+                    🔍 Verify My Ride
+                </button>
+            </div>
+            
+            <div class="help-section">
+                <h4>📤 How to export your GPX file:</h4>
+                <ul>
+                    <li><strong>Strava:</strong> Activity → ⋯ menu → Export GPX</li>
+                    <li><strong>Garmin Connect:</strong> Activity → ⚙️ → Export to GPX</li>
+                    <li><strong>Wahoo:</strong> Workout → Share → Export as GPX</li>
+                    <li><strong>Ride with GPS:</strong> Ride → Export → GPX Track</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your ride... 🌭</p>
+        </div>
+        
+        <!-- Step 2: Results -->
+        <div class="card verification-results" id="resultsCard">
+            <h2><span class="step-number">2</span> Verification Results</h2>
+            
+            <div class="result-header" id="resultHeader">
+                <h3 id="resultTitle"></h3>
+                <p id="resultSubtitle"></p>
+            </div>
+            
+            <!-- Ride Statistics -->
+            <div class="ride-stats" id="rideStats">
+                <div class="ride-stat">
+                    <div class="value" id="statDate">-</div>
+                    <div class="label">Ride Date</div>
+                </div>
+                <div class="ride-stat">
+                    <div class="value" id="statDuration">-</div>
+                    <div class="label">Challenge Time</div>
+                </div>
+                <div class="ride-stat">
+                    <div class="value" id="statDistance">-</div>
+                    <div class="label">Total Distance</div>
+                </div>
+                <div class="ride-stat">
+                    <div class="value" id="statAvgSpeed">-</div>
+                    <div class="label">Avg Speed</div>
+                </div>
+            </div>
+            
+            <h4 style="margin-bottom: 0.5rem;">Main Route (10 Costcos)</h4>
+            <div class="costco-grid" id="costcoGrid"></div>
+            
+            <div class="bonus-section">
+                <h4>⭐ Bonus Location</h4>
+                <div id="bonusResult"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" id="resetBtn">
+                    🔄 Verify Another Ride
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 3: Submit -->
+        <div class="card submission-form" id="submissionCard">
+            <h2><span class="step-number">3</span> Submit for Official Results</h2>
+            <p style="margin-bottom: 1.5rem; color: var(--text-light);">
+                Want to be featured on the official results page? Fill out the form below to submit your ride for review.
+            </p>
+            
+            <form id="submissionForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="riderName">Your Name *</label>
+                        <input type="text" id="riderName" name="riderName" required placeholder="How you want to appear on results">
+                    </div>
+                    <div class="form-group">
+                        <label for="riderEmail">Email *</label>
+                        <input type="email" id="riderEmail" name="riderEmail" required placeholder="For verification only">
+                    </div>
+                </div>
+                
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label for="rideDate">Ride Date</label>
+                        <input type="date" id="rideDate" name="rideDate" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="elapsedTimeDisplay">Challenge Time</label>
+                        <input type="text" id="elapsedTimeDisplay" readonly placeholder="Auto-calculated">
+                        <input type="hidden" id="elapsedTime" name="elapsedTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="avgSpeed">Avg Speed</label>
+                        <input type="text" id="avgSpeed" name="avgSpeed" readonly placeholder="Auto-calculated">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="stravaLink">Strava/Activity Link (optional)</label>
+                    <input type="url" id="stravaLink" name="stravaLink" placeholder="https://www.strava.com/activities/...">
+                </div>
+                
+                <div class="form-group">
+                    <label>Bonus Challenges Completed (Honor System)</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="bonuses" value="hotdog_purist">
+                            🌭 Hot Dog Purist
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="bonuses" value="pizza_party">
+                            🍕 Pizza Party
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="bonuses" value="menu_master">
+                            🎭 Menu Master
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="bonuses" value="sample_collector">
+                            🧪 Sample Collector
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="bonuses" value="speed_demon" id="speedDemonBonus">
+                            ⚡ Speed Demon (&lt;7h)
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="bonuses" value="spanish_fork" id="spanishForkBonus">
+                            🏔️ Spanish Fork Extension
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="comments">Comments (optional)</label>
+                    <input type="text" id="comments" name="comments" placeholder="Any notes about your ride">
+                </div>
+                
+                <!-- Hidden fields -->
+                <input type="hidden" id="costcosVisited" name="costcosVisited">
+                <input type="hidden" id="gpxHash" name="gpxHash">
+                <input type="hidden" id="verificationData" name="verificationData">
+                <input type="hidden" id="totalDistance" name="totalDistance">
+                <input type="hidden" id="movingTime" name="movingTime">
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success" id="submitBtn">
+                        📤 Submit for Review
+                    </button>
+                </div>
+            </form>
+            
+            <div class="message" id="submitMessage"></div>
+        </div>
+        
+        <div class="footer">
+            <p>Questions? Contact <a href="mailto:ggg@lmarx.com">ggg@lmarx.com</a></p>
+            <p style="margin-top: 0.5rem;">
+                <a href="/results">View All Results</a> • 
+                <a href="/">Back to Home</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================
+        // COSTCO LOCATIONS
+        // =====================================================
+        const COSTCOS = [
+            { name: "Orem", lat: 40.28056298936492, lon: -111.67989096390991, mile: 3.1 },
+            { name: "Lehi", lat: 40.38930244722512, lon: -111.82281926596582, mile: 20.9 },
+            { name: "Saratoga Springs", lat: 40.3813625264605, lon: -111.91846628756342, mile: 26.4 },
+            { name: "Riverton", lat: 40.51326031602138, lon: -112.00193679057458, mile: 42.4 },
+            { name: "South Jordan", lat: 40.56004657032966, lon: -111.97541047830654, mile: 46.9 },
+            { name: "Sandy", lat: 40.549869250400754, lon: -111.8943388234441, mile: 52.0 },
+            { name: "Murray", lat: 40.65774477283043, lon: -111.88997616091126, mile: 64.6 },
+            { name: "West Valley", lat: 40.690548404589144, lon: -111.95432454852087, mile: 70.9 },
+            { name: "Salt Lake City", lat: 40.73088295779431, lon: -111.90172671952065, mile: 77.7 },
+            { name: "Bountiful", lat: 40.89003698423399, lon: -111.894651184651, mile: 98.9 }
+        ];
+        
+        const SPANISH_FORK = { name: "Spanish Fork", lat: 40.12397045132009, lon: -111.64918094717243, mile: 0 };
+        
+        const RADIUS_MILES = 0.1;
+        
+        // Google Apps Script Web App URL
+        const SUBMIT_URL = 'https://script.google.com/macros/s/AKfycbw_BFeql6NA_C6R9rdEse6lBZ99fgAQsnn0NxfGWYSKaxIWWBG4RMaIqXhOVCtGi5c/exec';
+        
+        // =====================================================
+        // HAVERSINE DISTANCE
+        // =====================================================
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 3959;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+        
+        function toRad(deg) { return deg * (Math.PI / 180); }
+        
+        // =====================================================
+        // GPX PARSING
+        // =====================================================
+        function parseGPX(gpxText) {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(gpxText, 'text/xml');
+            const points = [];
+            
+            const trkpts = xml.querySelectorAll('trkpt');
+            trkpts.forEach(pt => {
+                const timeEl = pt.querySelector('time');
+                points.push({
+                    lat: parseFloat(pt.getAttribute('lat')),
+                    lon: parseFloat(pt.getAttribute('lon')),
+                    time: timeEl ? new Date(timeEl.textContent) : null
+                });
+            });
+            
+            const rtepts = xml.querySelectorAll('rtept');
+            rtepts.forEach(pt => {
+                const timeEl = pt.querySelector('time');
+                points.push({
+                    lat: parseFloat(pt.getAttribute('lat')),
+                    lon: parseFloat(pt.getAttribute('lon')),
+                    time: timeEl ? new Date(timeEl.textContent) : null
+                });
+            });
+            
+            return points;
+        }
+        
+        // =====================================================
+        // RIDE STATISTICS CALCULATION
+        // =====================================================
+        function calculateRideStats(points, verificationResults) {
+            const stats = {
+                rideDate: null,
+                totalDistance: 0,
+                challengeStartTime: null,  // When they LEAVE Costco 1 (Orem)
+                challengeEndTime: null,    // When they ARRIVE at Costco 10 (Bountiful)
+                challengeDuration: null,
+                avgSpeed: null
+            };
+            
+            if (points.length === 0) return stats;
+            
+            // Get ride date from first point with time
+            const firstPointWithTime = points.find(p => p.time);
+            if (firstPointWithTime) {
+                stats.rideDate = firstPointWithTime.time;
+            }
+            
+            // Calculate total distance
+            for (let i = 1; i < points.length; i++) {
+                const dist = haversineDistance(
+                    points[i-1].lat, points[i-1].lon,
+                    points[i].lat, points[i].lon
+                );
+                stats.totalDistance += dist;
+            }
+            
+            // Find challenge timing (Orem to Bountiful)
+            // For Orem (start): find the LAST point within radius (when they leave)
+            // For Bountiful (finish): find the FIRST point within radius (when they arrive)
+            
+            const oremResult = verificationResults['Orem'];
+            const bountifulResult = verificationResults['Bountiful'];
+            
+            if (oremResult && oremResult.visited && bountifulResult && bountifulResult.visited) {
+                // Find all points at Orem and get the last one (departure)
+                let lastOremTime = null;
+                let firstBountifulTime = null;
+                
+                for (const point of points) {
+                    if (!point.time) continue;
+                    
+                    const distToOrem = haversineDistance(point.lat, point.lon, COSTCOS[0].lat, COSTCOS[0].lon);
+                    const distToBountiful = haversineDistance(point.lat, point.lon, COSTCOS[9].lat, COSTCOS[9].lon);
+                    
+                    if (distToOrem <= RADIUS_MILES) {
+                        lastOremTime = point.time;
+                    }
+                    
+                    if (distToBountiful <= RADIUS_MILES && !firstBountifulTime) {
+                        firstBountifulTime = point.time;
+                    }
+                }
+                
+                stats.challengeStartTime = lastOremTime;
+                stats.challengeEndTime = firstBountifulTime;
+                
+                if (lastOremTime && firstBountifulTime) {
+                    const durationMs = firstBountifulTime - lastOremTime;
+                    stats.challengeDuration = durationMs;
+                    
+                    // Calculate average speed (use ~96 miles as route distance from Orem to Bountiful)
+                    const routeDistance = 95.8; // miles from Orem to Bountiful
+                    const hours = durationMs / (1000 * 60 * 60);
+                    if (hours > 0) {
+                        stats.avgSpeed = routeDistance / hours;
+                    }
+                }
+            }
+            
+            return stats;
+        }
+        
+        function formatDuration(ms) {
+            if (!ms) return '-';
+            const hours = Math.floor(ms / (1000 * 60 * 60));
+            const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+            return `${hours}h ${minutes}m ${seconds}s`;
+        }
+
+        function formatDurationShort(ms) {
+            if (!ms) return '-';
+            const hours = Math.floor(ms / (1000 * 60 * 60));
+            const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // =====================================================
+        // VERIFICATION LOGIC
+        // =====================================================
+        function verifyRide(points) {
+            const results = {};
+            
+            COSTCOS.forEach(costco => {
+                results[costco.name] = checkLocation(points, costco);
+            });
+            
+            results['Spanish Fork'] = checkLocation(points, SPANISH_FORK);
+            
+            return results;
+        }
+        
+        function checkLocation(points, location) {
+            let closestDistance = Infinity;
+            let visitTime = null;
+            let firstVisitTime = null;
+            
+            points.forEach(point => {
+                const distance = haversineDistance(
+                    point.lat, point.lon,
+                    location.lat, location.lon
+                );
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                }
+                
+                if (distance <= RADIUS_MILES) {
+                    if (!firstVisitTime && point.time) {
+                        firstVisitTime = point.time;
+                    }
+                    if (point.time) {
+                        visitTime = point.time; // Last time in radius
+                    }
+                }
+            });
+            
+            return {
+                visited: closestDistance <= RADIUS_MILES,
+                closestDistance: closestDistance,
+                visitTime: firstVisitTime, // First arrival time
+                departureTime: visitTime   // Last time at location
+            };
+        }
+        
+        // =====================================================
+        // HASH FOR DUPLICATE DETECTION
+        // =====================================================
+        async function hashGPX(gpxText) {
+            const normalized = gpxText.replace(/\s+/g, ' ').trim();
+            const encoder = new TextEncoder();
+            const data = encoder.encode(normalized);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex.substring(0, 16);
+        }
+        
+        // =====================================================
+        // UI HANDLERS
+        // =====================================================
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('gpxFile');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const loading = document.getElementById('loading');
+        const resultsCard = document.getElementById('resultsCard');
+        const submissionCard = document.getElementById('submissionCard');
+        const fileInfo = document.getElementById('fileInfo');
+        
+        let gpxContent = null;
+        let verificationResults = null;
+        let gpxHash = null;
+        let rideStats = null;
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) {
+                handleFile(fileInput.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.gpx')) {
+                alert('Please select a GPX file');
+                return;
+            }
+            
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = ` (${(file.size / 1024).toFixed(1)} KB)`;
+            fileInfo.classList.add('show');
+            uploadArea.classList.add('has-file');
+            uploadArea.querySelector('h3').textContent = '✓ File selected';
+            uploadArea.querySelector('p').textContent = 'Click "Verify My Ride" to continue';
+            verifyBtn.disabled = false;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                gpxContent = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+        
+        // Verify button
+        verifyBtn.addEventListener('click', async () => {
+            if (!gpxContent) return;
+            
+            verifyBtn.disabled = true;
+            loading.classList.add('show');
+            resultsCard.classList.remove('show');
+            submissionCard.classList.remove('show');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            try {
+                const points = parseGPX(gpxContent);
+                
+                if (points.length === 0) {
+                    throw new Error('No GPS points found in file');
+                }
+                
+                verificationResults = verifyRide(points);
+                gpxHash = await hashGPX(gpxContent);
+                rideStats = calculateRideStats(points, verificationResults);
+                
+                displayResults(verificationResults, rideStats);
+                
+            } catch (err) {
+                alert('Error processing GPX file: ' + err.message);
+                verifyBtn.disabled = false;
+            } finally {
+                loading.classList.remove('show');
+            }
+        });
+        
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            gpxContent = null;
+            verificationResults = null;
+            gpxHash = null;
+            rideStats = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            uploadArea.classList.remove('has-file');
+            uploadArea.querySelector('h3').textContent = 'Drop your GPX file here';
+            uploadArea.querySelector('p').textContent = 'or click to browse';
+            verifyBtn.disabled = true;
+            resultsCard.classList.remove('show');
+            submissionCard.classList.remove('show');
+        });
+        
+        function displayResults(results, stats) {
+            const mainCostcos = COSTCOS.map(c => c.name);
+            const visitedCount = mainCostcos.filter(name => results[name].visited).length;
+            const spanishForkVisited = results['Spanish Fork'].visited;
+            
+            // Update header
+            const header = document.getElementById('resultHeader');
+            const title = document.getElementById('resultTitle');
+            const subtitle = document.getElementById('resultSubtitle');
+            
+            if (visitedCount === 10) {
+                header.className = 'result-header success';
+                title.textContent = '🎉 CHALLENGE COMPLETE!';
+                subtitle.textContent = 'All 10 Costcos visited!' + (spanishForkVisited ? ' + Spanish Fork bonus!' : '');
+            } else {
+                header.className = 'result-header partial';
+                title.textContent = `${visitedCount}/10 Costcos Visited`;
+                subtitle.textContent = visitedCount >= 5 ? 'Good effort!' : 'Keep riding!';
+            }
+            
+            // Update ride stats display
+            document.getElementById('statDate').textContent = stats.rideDate 
+                ? stats.rideDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : '-';
+            document.getElementById('statDuration').textContent = formatDuration(stats.challengeDuration);
+            document.getElementById('statDistance').textContent = stats.totalDistance 
+                ? `${stats.totalDistance.toFixed(1)} mi`
+                : '-';
+            document.getElementById('statAvgSpeed').textContent = stats.avgSpeed 
+                ? `${stats.avgSpeed.toFixed(1)} mph`
+                : '-';
+            
+            // Build costco grid
+            const grid = document.getElementById('costcoGrid');
+            grid.innerHTML = COSTCOS.map(costco => {
+                const result = results[costco.name];
+                const statusClass = result.visited ? 'visited' : 'missed';
+                const icon = result.visited ? '✅' : '❌';
+                const distance = result.closestDistance < 10 
+                    ? `${(result.closestDistance * 5280).toFixed(0)} ft` 
+                    : `${result.closestDistance.toFixed(2)} mi`;
+                
+                const timeStr = result.visitTime 
+                    ? result.visitTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                    : '';
+                
+                return `
+                    <div class="costco-item ${statusClass}">
+                        <span class="icon">${icon}</span>
+                        <div>
+                            <div class="name">${costco.name}</div>
+                            <div class="distance">${result.visited ? 'Visited' : `Closest: ${distance}`}</div>
+                            ${timeStr ? `<div class="time">@ ${timeStr}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Spanish Fork bonus
+            const sfResult = results['Spanish Fork'];
+            document.getElementById('bonusResult').innerHTML = `
+                <div class="costco-item ${sfResult.visited ? 'visited' : 'missed'}">
+                    <span class="icon">${sfResult.visited ? '⭐' : '➖'}</span>
+                    <div>
+                        <div class="name">Spanish Fork Extension</div>
+                        <div class="distance">${sfResult.visited ? 'Completed!' : 'Not visited'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Show results
+            resultsCard.classList.add('show');
+            
+            // Show submission form if at least 5 Costcos visited
+            if (visitedCount >= 5) {
+                // Pre-fill form fields
+                document.getElementById('costcosVisited').value = visitedCount;
+                document.getElementById('gpxHash').value = gpxHash;
+                document.getElementById('verificationData').value = JSON.stringify(results);
+                
+                // Auto-fill ride date
+                if (stats.rideDate) {
+                    const dateStr = stats.rideDate.toISOString().split('T')[0];
+                    document.getElementById('rideDate').value = dateStr;
+                }
+                
+                // Auto-fill elapsed time (display formatted, store as milliseconds)
+                document.getElementById('elapsedTimeDisplay').value = formatDurationShort(stats.challengeDuration);
+                document.getElementById('elapsedTime').value = stats.challengeDuration || '';
+                
+                // Auto-fill avg speed
+                document.getElementById('avgSpeed').value = stats.avgSpeed 
+                    ? `${stats.avgSpeed.toFixed(1)} mph`
+                    : '-';
+                
+                // Auto-fill hidden fields
+                document.getElementById('totalDistance').value = stats.totalDistance?.toFixed(2) || '';
+                document.getElementById('movingTime').value = stats.challengeDuration || '';
+                
+                // Auto-check bonuses
+                document.getElementById('spanishForkBonus').checked = spanishForkVisited;
+                
+                // Auto-check speed demon if under 7 hours
+                if (stats.challengeDuration && stats.challengeDuration < 7 * 60 * 60 * 1000) {
+                    document.getElementById('speedDemonBonus').checked = true;
+                }
+                
+                submissionCard.classList.add('show');
+            }
+            
+            resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        // =====================================================
+        // SUBMISSION HANDLING
+        // =====================================================
+        document.getElementById('submissionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const message = document.getElementById('submitMessage');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
+            const formData = {
+                name: document.getElementById('riderName').value,
+                email: document.getElementById('riderEmail').value,
+                rideDate: document.getElementById('rideDate').value,
+                elapsedTime: document.getElementById('elapsedTime').value,
+                avgSpeed: document.getElementById('avgSpeed').value,
+                stravaLink: document.getElementById('stravaLink').value,
+                bonuses: Array.from(document.querySelectorAll('input[name="bonuses"]:checked'))
+                    .map(cb => cb.value),
+                comments: document.getElementById('comments').value,
+                costcosVisited: document.getElementById('costcosVisited').value,
+                gpxHash: document.getElementById('gpxHash').value,
+                verificationData: document.getElementById('verificationData').value,
+                totalDistance: document.getElementById('totalDistance').value,
+                movingTime: document.getElementById('movingTime').value,
+                submittedAt: new Date().toISOString(),
+                year: new Date(document.getElementById('rideDate').value).getFullYear()
+            };
+            
+            try {
+                const response = await fetch(SUBMIT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                message.textContent = '✅ Submission received! We\'ll review it and add you to the results page soon.';
+                message.className = 'message success show';
+                submitBtn.textContent = '✓ Submitted!';
+                
+            } catch (err) {
+                message.textContent = '❌ Error submitting. Please try again or email ggg@lmarx.com';
+                message.className = 'message error show';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Submit for Review';
+            }
+        });
+    </script>
+</body>
+</html>

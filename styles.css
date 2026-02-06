@@ -120,6 +120,7 @@ body {
     justify-content: center;
     gap: 1.5rem;
     flex-wrap: wrap;
+    position: relative;
 }
 
 .time-box {
@@ -159,6 +160,56 @@ body {
 .hero-content {
     max-width: 900px;
     margin: 0 auto;
+}
+
+/* FREE Starburst Sticker */
+.free-sticker {
+    position: absolute;
+    right: -1rem;
+    top: 50%;
+    transform: translateY(-50%) rotate(12deg);
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.35));
+    z-index: 2;
+    pointer-events: none;
+}
+
+.free-sticker::before,
+.free-sticker::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--accent-color);
+    clip-path: polygon(
+        50% 0%, 61% 11%, 75% 3%, 78% 18%, 93% 18%, 89% 33%,
+        100% 42%, 91% 53%, 97% 66%, 84% 69%, 82% 84%, 69% 78%,
+        58% 90%, 50% 79%, 42% 90%, 31% 78%, 18% 84%, 16% 69%,
+        3% 66%, 9% 53%, 0% 42%, 11% 33%, 7% 18%, 22% 18%,
+        25% 3%, 39% 11%
+    );
+}
+
+.free-sticker::after {
+    transform: rotate(15deg);
+}
+
+.free-sticker-text {
+    position: relative;
+    z-index: 3;
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--primary-color);
+    letter-spacing: 1px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+    margin-top: -6px;
 }
 
 .hero-title {
@@ -1166,6 +1217,15 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .free-sticker {
+        width: 70px;
+        height: 70px;
+    }
+
+    .free-sticker-text {
+        font-size: 1.3rem;
+    }
+
     .hero-title {
         font-size: 2.2rem;
         line-height: 1.3;
@@ -1264,6 +1324,15 @@ body {
 }
 
 @media (max-width: 480px) {
+    .free-sticker {
+        width: 55px;
+        height: 55px;
+    }
+
+    .free-sticker-text {
+        font-size: 1rem;
+    }
+
     .hero-title {
         font-size: 1.8rem;
         line-height: 1.4;

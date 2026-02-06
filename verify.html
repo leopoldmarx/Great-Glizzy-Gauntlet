@@ -26,8 +26,10 @@
     <!-- Canonical URL -->
     <link rel="canonical" href="https://ggg.lmarx.com/verify">
 
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌭</text></svg>">
+    <!-- Favicon - Hot Dog Emoji -->
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon.ico">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,6 +82,37 @@
         }
 
         .footer a { color: var(--secondary-color); }
+
+        /* Locked bonus checkboxes (GPX-verified only) */
+        .locked-bonus {
+            opacity: 0.5;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .locked-bonus input[type="checkbox"] {
+            cursor: not-allowed;
+        }
+
+        .locked-bonus.unlocked {
+            opacity: 1;
+            cursor: pointer;
+        }
+
+        .locked-bonus.unlocked input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .bonus-lock {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-left: 0.25rem;
+        }
+
+        .locked-bonus.unlocked .bonus-lock {
+            color: #2ecc71;
+            font-weight: 600;
+        }
 
         @media (max-width: 768px) {
             h1 { font-size: 2rem; }
@@ -247,13 +280,15 @@
                             <input type="checkbox" name="bonuses" value="sample_collector">
                             🧪 Sample Collector
                         </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="bonuses" value="speed_demon" id="speedDemonBonus">
+                        <label class="checkbox-item locked-bonus" id="speedDemonLabel" title="Auto-detected from your ride data">
+                            <input type="checkbox" name="bonuses" value="speed_demon" id="speedDemonBonus" disabled>
                             ⚡ Speed Demon (&lt;7h)
+                            <span class="bonus-lock">🔒 Verified by GPX</span>
                         </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="bonuses" value="spanish_fork" id="spanishForkBonus">
+                        <label class="checkbox-item locked-bonus" id="spanishForkLabel" title="Auto-detected from your ride data">
+                            <input type="checkbox" name="bonuses" value="spanish_fork" id="spanishForkBonus" disabled>
                             🏔️ Spanish Fork Extension
+                            <span class="bonus-lock">🔒 Verified by GPX</span>
                         </label>
                     </div>
                 </div>
@@ -269,7 +304,18 @@
                 <input type="hidden" id="verificationData" name="verificationData">
                 <input type="hidden" id="totalDistance" name="totalDistance">
                 <input type="hidden" id="movingTime" name="movingTime">
-                
+
+                <div class="consent-section">
+                    <label class="consent-item">
+                        <input type="checkbox" id="consentCheckbox" required>
+                        <span class="consent-text">
+                            I agree to share my GPX file and ride data with the Great Glizzy Gauntlet organizers.
+                            My GPX file will be uploaded and stored, and my ride data may be analyzed and 
+                            displayed on the leaderboard. Sharing your data is required to be featured on the leaderboard.
+                        </span>
+                    </label>
+                </div>
+
                 <div class="btn-group">
                     <button type="submit" class="btn btn-success" id="submitBtn">
                         📤 Submit for Review
@@ -311,7 +357,7 @@
         const RADIUS_MILES = 0.1;
         
         // Google Apps Script Web App URL
-        const SUBMIT_URL = 'https://script.google.com/macros/s/AKfycbw_BFeql6NA_C6R9rdEse6lBZ99fgAQsnn0NxfGWYSKaxIWWBG4RMaIqXhOVCtGi5c/exec';
+        const SUBMIT_URL = 'https://script.google.com/macros/s/AKfycbwuMP8IkLM5bE8vGzXUyKo_n0VLn-ZOvGNGOf32HLeZ2vx5i5uXgizPw4JqSeio_Hjp/exec';
         
         // =====================================================
         // HAVERSINE DISTANCE
@@ -698,8 +744,8 @@
             // Show results
             resultsCard.classList.add('show');
             
-            // Show submission form if at least 5 Costcos visited
-            if (visitedCount >= 5) {
+            // Show submission form if at least 2 Costcos visited
+            if (visitedCount >= 2) {
                 // Pre-fill form fields
                 document.getElementById('costcosVisited').value = visitedCount;
                 document.getElementById('gpxHash').value = gpxHash;
@@ -724,12 +770,33 @@
                 document.getElementById('totalDistance').value = stats.totalDistance?.toFixed(2) || '';
                 document.getElementById('movingTime').value = stats.challengeDuration || '';
                 
-                // Auto-check bonuses
-                document.getElementById('spanishForkBonus').checked = spanishForkVisited;
-                
-                // Auto-check speed demon if under 7 hours
+                // Auto-check and unlock GPX-verified bonuses
+                const spanishForkCheckbox = document.getElementById('spanishForkBonus');
+                const spanishForkLabel = document.getElementById('spanishForkLabel');
+                if (spanishForkVisited) {
+                    spanishForkCheckbox.checked = true;
+                    spanishForkCheckbox.disabled = false;
+                    spanishForkLabel.classList.add('unlocked');
+                    spanishForkLabel.querySelector('.bonus-lock').textContent = '✅ Verified by GPX';
+                } else {
+                    spanishForkCheckbox.checked = false;
+                    spanishForkCheckbox.disabled = true;
+                    spanishForkLabel.classList.remove('unlocked');
+                    spanishForkLabel.querySelector('.bonus-lock').textContent = '🔒 Verified by GPX';
+                }
+
+                const speedDemonCheckbox = document.getElementById('speedDemonBonus');
+                const speedDemonLabel = document.getElementById('speedDemonLabel');
                 if (stats.challengeDuration && stats.challengeDuration < 7 * 60 * 60 * 1000) {
-                    document.getElementById('speedDemonBonus').checked = true;
+                    speedDemonCheckbox.checked = true;
+                    speedDemonCheckbox.disabled = false;
+                    speedDemonLabel.classList.add('unlocked');
+                    speedDemonLabel.querySelector('.bonus-lock').textContent = '✅ Verified by GPX';
+                } else {
+                    speedDemonCheckbox.checked = false;
+                    speedDemonCheckbox.disabled = true;
+                    speedDemonLabel.classList.remove('unlocked');
+                    speedDemonLabel.querySelector('.bonus-lock').textContent = '🔒 Verified by GPX';
                 }
                 
                 submissionCard.classList.add('show');
@@ -743,17 +810,29 @@
         // =====================================================
         document.getElementById('submissionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const submitBtn = document.getElementById('submitBtn');
             const message = document.getElementById('submitMessage');
-            
+
+            // Validate consent checkbox
+            const consentCheckbox = document.getElementById('consentCheckbox');
+            if (!consentCheckbox.checked) {
+                message.textContent = '⚠️ Please agree to the data sharing terms before submitting.';
+                message.className = 'message error show';
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
-            
+
+            const gpxHash = document.getElementById('gpxHash').value;
+            const riderName = document.getElementById('riderName').value;
+            const rideDate = document.getElementById('rideDate').value;
+
             const formData = {
-                name: document.getElementById('riderName').value,
+                name: riderName,
                 email: document.getElementById('riderEmail').value,
-                rideDate: document.getElementById('rideDate').value,
+                rideDate: rideDate,
                 elapsedTime: document.getElementById('elapsedTime').value,
                 avgSpeed: document.getElementById('avgSpeed').value,
                 stravaLink: document.getElementById('stravaLink').value,
@@ -761,26 +840,65 @@
                     .map(cb => cb.value),
                 comments: document.getElementById('comments').value,
                 costcosVisited: document.getElementById('costcosVisited').value,
-                gpxHash: document.getElementById('gpxHash').value,
+                gpxHash: gpxHash,
                 verificationData: document.getElementById('verificationData').value,
                 totalDistance: document.getElementById('totalDistance').value,
                 movingTime: document.getElementById('movingTime').value,
                 submittedAt: new Date().toISOString(),
-                year: new Date(document.getElementById('rideDate').value).getFullYear()
+                year: new Date(rideDate).getFullYear(),
+                consentGiven: true
             };
-            
+
             try {
-                const response = await fetch(SUBMIT_URL, {
+                // Step 1: Submit form data (lightweight, no GPX file)
+                await fetch(SUBMIT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(formData)
                 });
-                
-                message.textContent = '✅ Submission received! We\'ll review it and add you to the results page soon.';
+
+                message.textContent = '✅ Submission received! Uploading GPX file...';
+                message.className = 'message success show';
+                submitBtn.textContent = 'Uploading GPX...';
+
+                // Step 2: Upload GPX file separately
+                try {
+                    console.log('Starting GPX base64 encoding...');
+                    console.log('gpxContent length:', gpxContent ? gpxContent.length : 'NULL/UNDEFINED');
+                    const gpxBase64 = btoa(unescape(encodeURIComponent(gpxContent)));
+                    console.log('GPX base64 encoded, length:', gpxBase64.length);
+
+                    const gpxUploadData = {
+                        action: 'uploadGpx',
+                        gpxFileBase64: gpxBase64,
+                        gpxFileName: document.getElementById('fileName')?.textContent || 'ride.gpx',
+                        gpxHash: gpxHash,
+                        riderName: riderName,
+                        rideDate: rideDate
+                    };
+
+                    console.log('Sending GPX upload request...');
+                    console.log('Total payload size (approx):', JSON.stringify(gpxUploadData).length, 'chars');
+
+                    await fetch(SUBMIT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(gpxUploadData)
+                    });
+
+                    console.log('GPX upload fetch completed');
+                    message.textContent = '✅ Submission received and GPX uploaded! We\'ll review it and add you to the results page soon.';
+                } catch (gpxErr) {
+                    console.error('GPX upload error:', gpxErr);
+                    console.error('Error details:', gpxErr.message, gpxErr.stack);
+                    message.textContent = '✅ Submission received! GPX upload may still be processing. We\'ll review it soon.';
+                }
+
                 message.className = 'message success show';
                 submitBtn.textContent = '✓ Submitted!';
-                
+
             } catch (err) {
                 message.textContent = '❌ Error submitting. Please try again or email ggg@lmarx.com';
                 message.className = 'message error show';

@@ -1,30 +1,39 @@
 /**
- * Great Glizzy Gauntlet - Google Apps Script Backend (v3)
+ * Great Glizzy Gauntlet - Google Apps Script Backend (v5 - Standalone)
  *
- * Updated to include:
- * - avgSpeed: Average speed in mph
- * - totalDistance: Total distance in miles
- * - movingTime: Moving time in milliseconds
- * - elapsedTime: Now stored in milliseconds (same as movingTime)
- * - Server-side admin token verification for security
+ * STANDALONE Apps Script project (NOT container-bound to a Sheet).
+ * This version uses SpreadsheetApp.openById() and has full DriveApp access.
  *
- * SETUP INSTRUCTIONS:
- * 1. Create a new Google Sheet (or use existing)
- * 2. Go to Extensions > Apps Script
- * 3. Paste this code (replace existing if updating)
- * 4. Run setupSheet() to create/update the sheet structure
- * 5. Set up admin token:
- *    a. Go to Project Settings (gear icon) > Script Properties
- *    b. Add property: ADMIN_TOKEN = (generate with crypto.randomUUID() in browser)
- *    c. Copy this same token to your admin-config.js file
- * 6. Deploy > Manage deployments > Edit > New version
+ * Features:
+ * - avgSpeed, totalDistance, movingTime, elapsedTime (all in milliseconds)
+ * - Server-side admin token verification
+ * - GPX file upload to Google Drive
+ * - Consent tracking
+ *
+ * SETUP INSTRUCTIONS (Standalone Project):
+ * 1. Go to https://script.google.com and create a new project
+ * 2. Paste this code into Code.gs (replace any existing code)
+ * 3. Update SPREADSHEET_ID below with your Google Sheet ID
+ * 4. Go to Project Settings (gear icon):
+ *    a. Check "Show appsscript.json manifest file in editor"
+ *    b. Add Script Properties:
+ *       - ADMIN_TOKEN = (your admin token)
+ *       - GPX_FOLDER_ID = (your Google Drive folder ID for GPX files)
+ * 5. Edit appsscript.json to include Drive scope (see bottom of this file)
+ * 6. Run authorizeDriveAccess() from the editor — approve Drive permissions when prompted
+ * 7. Deploy > New deployment > Web app > Execute as "Me" > Access "Anyone"
+ * 8. Update SUBMIT_URL in verify.html, admin.html, results.html with the new deployment URL
  *
  * SHEET COLUMNS (in order):
  * id, name, email, rideDate, elapsedTime, avgSpeed, totalDistance, movingTime,
- * stravaLink, bonuses, comments, costcosVisited, gpxHash, verificationData,
- * submittedAt, status, year, reviewedAt
+ * stravaLink, bonuses, comments, costcosVisited, gpxHash, gpxDriveUrl, gpxDriveId,
+ * consentGiven, verificationData, submittedAt, status, year, reviewedAt
  */
 
+// =====================================================
+// CONFIGURATION — UPDATE THESE VALUES
+// =====================================================
+const SPREADSHEET_ID = '1AO8IO0t6S1vNyUomLG_Qci3ppcgOhj7jTNWdLjRaVvE';  // <-- Replace with your Google Sheet ID
 const SHEET_NAME = 'Submissions';
 
 /**
@@ -91,6 +100,9 @@ function doPost(e) {
       } else {
         result = { error: 'Unauthorized' };
       }
+    } else if (data.action === 'uploadGpx') {
+      // GPX file upload - separate from form submission
+      result = uploadGpxFile(data);
     } else {
       // Public submission - no auth required
       result = addSubmission(data);
@@ -106,25 +118,25 @@ function doPost(e) {
 }
 
 /**
- * Get the submissions sheet
+ * Get the submissions sheet (standalone — uses openById)
  */
 function getSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   let sheet = ss.getSheetByName(SHEET_NAME);
-  
+
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    
+
     const headers = [
       'id', 'name', 'email', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
-      'stravaLink', 'bonuses', 'comments', 'costcosVisited', 'gpxHash', 'verificationData',
-      'submittedAt', 'status', 'year', 'reviewedAt'
+      'stravaLink', 'bonuses', 'comments', 'costcosVisited', 'gpxHash', 'gpxDriveUrl', 'gpxDriveId',
+      'consentGiven', 'verificationData', 'submittedAt', 'status', 'year', 'reviewedAt'
     ];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f0f0f0');
     sheet.setFrozenRows(1);
   }
-  
+
   return sheet;
 }
 
@@ -134,11 +146,11 @@ function getSheet() {
 function addSubmission(data) {
   const sheet = getSheet();
   const id = Date.now();
-  
+
   // Check for duplicate GPX hash
   const existingHashes = getExistingHashes();
   const isDuplicate = existingHashes.includes(data.gpxHash);
-  
+
   const row = [
     id,
     data.name || '',
@@ -153,22 +165,83 @@ function addSubmission(data) {
     data.comments || '',
     data.costcosVisited || 0,
     data.gpxHash || '',
+    '',  // gpxDriveUrl - filled by separate uploadGpx call
+    '',  // gpxDriveId - filled by separate uploadGpx call
+    data.consentGiven || false,
     data.verificationData || '',
     data.submittedAt || new Date().toISOString(),
     'pending',
     data.year || new Date().getFullYear(),
     ''
   ];
-  
+
   sheet.appendRow(row);
-  sendNotificationEmail(data, isDuplicate);
-  
+  sendNotificationEmail(data, isDuplicate, '');
+
   return {
     success: true,
     id: id,
     message: 'Submission received',
     possibleDuplicate: isDuplicate
   };
+}
+
+/**
+ * Upload GPX file to Google Drive and update the matching submission row
+ * Called separately from addSubmission to avoid payload size issues
+ */
+function uploadGpxFile(data) {
+  if (!data.gpxFileBase64) {
+    return { success: false, message: 'No GPX file data received' };
+  }
+
+  try {
+    console.log('GPX upload: base64 length = ' + data.gpxFileBase64.length);
+
+    // Decode and create file
+    const gpxBytes = Utilities.base64Decode(data.gpxFileBase64);
+    const fileName = (data.riderName || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')
+      + '_' + (data.rideDate || 'nodate')
+      + '_' + Date.now() + '.gpx';
+    const blob = Utilities.newBlob(gpxBytes, 'application/gpx+xml', fileName);
+
+    // Save to Drive
+    const folderId = getOrCreateGpxFolder();
+    const folder = DriveApp.getFolderById(folderId);
+    const file = folder.createFile(blob);
+    const gpxDriveUrl = file.getUrl();
+    const gpxDriveId = file.getId();
+
+    console.log('GPX file saved: ' + gpxDriveUrl);
+
+    // Find the matching submission row by gpxHash and update it
+    if (data.gpxHash) {
+      const sheet = getSheet();
+      const sheetData = sheet.getDataRange().getValues();
+      const headers = sheetData[0];
+      const hashCol = headers.indexOf('gpxHash');
+      const urlCol = headers.indexOf('gpxDriveUrl');
+      const idCol = headers.indexOf('gpxDriveId');
+
+      if (hashCol !== -1 && urlCol !== -1 && idCol !== -1) {
+        for (let i = sheetData.length - 1; i >= 1; i--) {
+          if (sheetData[i][hashCol] === data.gpxHash) {
+            sheet.getRange(i + 1, urlCol + 1).setValue(gpxDriveUrl);
+            sheet.getRange(i + 1, idCol + 1).setValue(gpxDriveId);
+            console.log('Updated row ' + (i + 1) + ' with Drive link');
+            break;
+          }
+        }
+      }
+    }
+
+    return { success: true, message: 'GPX uploaded', driveUrl: gpxDriveUrl };
+
+  } catch (e) {
+    console.log('GPX upload error: ' + e.toString());
+    console.log('Stack: ' + e.stack);
+    return { success: false, message: 'GPX upload failed: ' + e.toString() };
+  }
 }
 
 /**
@@ -288,11 +361,11 @@ function updateSubmissionStatus(id, newStatus) {
 /**
  * Send notification email
  */
-function sendNotificationEmail(data, isDuplicate) {
+function sendNotificationEmail(data, isDuplicate, gpxDriveUrl) {
   const ADMIN_EMAIL = 'leopoldmarx@gmail.com'; // Change if needed
-  
+
   const subject = `🌭 New GGG Submission: ${data.name}${isDuplicate ? ' ⚠️ POSSIBLE DUPLICATE' : ''}`;
-  
+
   const body = `
 New Great Glizzy Gauntlet submission received!
 
@@ -308,6 +381,8 @@ Total Distance: ${data.totalDistance ? data.totalDistance + ' mi' : 'Not calcula
 Strava Link: ${data.stravaLink || 'Not provided'}
 Claimed Bonuses: ${(data.bonuses || []).join(', ') || 'None'}
 Comments: ${data.comments || 'None'}
+GPX File: ${gpxDriveUrl || 'Not uploaded'}
+Data Consent: ${data.consentGiven ? 'Yes' : 'No'}
 
 ${isDuplicate ? '⚠️ WARNING: This GPX hash matches an existing approved submission!' : ''}
 
@@ -326,30 +401,30 @@ Review this submission at: https://ggg.lmarx.com/admin
  * Run this after updating the code to add new columns
  */
 function setupSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
   // Delete existing sheet
   const existingSheet = ss.getSheetByName(SHEET_NAME);
   if (existingSheet) {
     ss.deleteSheet(existingSheet);
   }
-  
+
   const sheet = ss.insertSheet(SHEET_NAME);
   
   const headers = [
     'id', 'name', 'email', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
-    'stravaLink', 'bonuses', 'comments', 'costcosVisited', 'gpxHash', 'verificationData',
-    'submittedAt', 'status', 'year', 'reviewedAt'
+    'stravaLink', 'bonuses', 'comments', 'costcosVisited', 'gpxHash', 'gpxDriveUrl', 'gpxDriveId',
+    'consentGiven', 'verificationData', 'submittedAt', 'status', 'year', 'reviewedAt'
   ];
-  
+
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f0f0f0');
   sheet.setFrozenRows(1);
-  
+
   // Set column widths
-  const widths = [120, 150, 200, 100, 80, 80, 100, 100, 250, 200, 250, 80, 120, 300, 180, 80, 60, 180];
+  const widths = [120, 150, 200, 100, 80, 80, 100, 100, 250, 200, 250, 80, 120, 250, 120, 80, 300, 180, 80, 60, 180];
   widths.forEach((w, i) => sheet.setColumnWidth(i + 1, w));
-  
+
   return 'Sheet setup complete with new columns!';
 }
 
@@ -360,24 +435,124 @@ function setupSheet() {
 function addNewColumnsToExistingSheet() {
   const sheet = getSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
+
   // Check if new columns already exist
   const newColumns = ['avgSpeed', 'totalDistance', 'movingTime'];
   const columnsToAdd = newColumns.filter(col => !headers.includes(col));
-  
+
   if (columnsToAdd.length === 0) {
     return 'All columns already exist!';
   }
-  
+
   // Find position after elapsedTime
   const elapsedTimeIndex = headers.indexOf('elapsedTime');
   const insertPosition = elapsedTimeIndex + 2; // +1 for 1-based, +1 to insert after
-  
+
   // Insert new columns
   columnsToAdd.forEach((colName, i) => {
     sheet.insertColumnAfter(insertPosition + i - 1);
     sheet.getRange(1, insertPosition + i).setValue(colName);
   });
-  
+
   return `Added columns: ${columnsToAdd.join(', ')}`;
 }
+
+/**
+ * Get the Google Drive folder ID for storing GPX files
+ * Folder must be created manually and ID set in Script Properties (GPX_FOLDER_ID)
+ */
+function getOrCreateGpxFolder() {
+
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const folderId = scriptProperties.getProperty('GPX_FOLDER_ID');
+
+  return folderId;
+}
+
+/**
+ * Add GPX Drive and consent columns to existing sheet
+ * Run this ONCE before deploying the updated Apps Script
+ */
+function addGpxAndConsentColumns() {
+  const sheet = getSheet();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  const gpxHashIndex = headers.indexOf('gpxHash');
+  if (gpxHashIndex === -1) return 'gpxHash column not found!';
+
+  const columnsToAdd = [];
+  if (!headers.includes('gpxDriveUrl')) columnsToAdd.push('gpxDriveUrl');
+  if (!headers.includes('gpxDriveId')) columnsToAdd.push('gpxDriveId');
+  if (!headers.includes('consentGiven')) columnsToAdd.push('consentGiven');
+
+  if (columnsToAdd.length === 0) return 'All columns already exist!';
+
+  // Insert after gpxHash
+  let insertPos = gpxHashIndex + 2; // +1 for 1-based, +1 to insert after
+  columnsToAdd.forEach((colName, i) => {
+    sheet.insertColumnAfter(insertPos + i - 1);
+    sheet.getRange(1, insertPos + i).setValue(colName);
+  });
+
+  return `Added columns: ${columnsToAdd.join(', ')}`;
+}
+
+/**
+ * STEP 1: Run this from the editor to authorize Drive + Sheets access.
+ * It will:
+ *   - Prompt you to authorize Drive and Sheets permissions
+ *   - Verify it can access the GPX folder (set GPX_FOLDER_ID in Script Properties first)
+ *   - Verify it can access the spreadsheet
+ *
+ * After running successfully, deploy a new version of the web app.
+ */
+function authorizeDriveAccess() {
+  // Test Drive access
+  const rootFolder = DriveApp.getRootFolder();
+  console.log('Drive access authorized! Root folder: ' + rootFolder.getName());
+
+  // Test GPX folder access
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const folderId = scriptProperties.getProperty('GPX_FOLDER_ID');
+  if (folderId) {
+    const folder = DriveApp.getFolderById(folderId);
+    console.log('GPX folder accessible: ' + folder.getName() + ' (ID: ' + folderId + ')');
+  } else {
+    console.log('WARNING: GPX_FOLDER_ID not set in Script Properties! Set it before deploying.');
+  }
+
+  // Test Spreadsheet access
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  console.log('Spreadsheet accessible: ' + ss.getName());
+
+  const sheet = ss.getSheetByName(SHEET_NAME);
+  if (sheet) {
+    console.log('Sheet "' + SHEET_NAME + '" found with ' + sheet.getLastRow() + ' rows');
+  } else {
+    console.log('Sheet "' + SHEET_NAME + '" not found — run setupSheet() or check SHEET_NAME');
+  }
+
+  return 'All access verified! Ready to deploy.';
+}
+
+/**
+ * appsscript.json manifest — use this content for the standalone project:
+ *
+ * {
+ *   "timeZone": "America/Denver",
+ *   "dependencies": {},
+ *   "exceptionLogging": "STACKDRIVER",
+ *   "runtimeVersion": "V8",
+ *   "oauthScopes": [
+ *     "https://www.googleapis.com/auth/spreadsheets",
+ *     "https://www.googleapis.com/auth/drive",
+ *     "https://www.googleapis.com/auth/drive.file",
+ *     "https://www.googleapis.com/auth/script.send_mail",
+ *     "https://www.googleapis.com/auth/script.external_request"
+ *   ],
+ *   "webapp": {
+ *     "executeAs": "USER_DEPLOYING",
+ *     "access": "ANYONE_ANONYMOUS"
+ *   }
+ * }
+ */

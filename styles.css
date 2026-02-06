@@ -1731,6 +1731,37 @@ body {
 .checkbox-item:hover { background: #e9ecef; }
 .checkbox-item input { width: auto; }
 
+/* Consent checkbox */
+.consent-section {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: #fff9e6;
+    border: 2px solid var(--accent-color);
+    border-radius: 10px;
+}
+
+.consent-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+    line-height: 1.5;
+}
+
+.consent-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.consent-text {
+    font-size: 0.9rem;
+    color: var(--text-dark);
+}
+
 /* Loading spinner */
 .loading { text-align: center; padding: 2rem; display: none; }
 .loading.show { display: block; }

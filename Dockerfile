@@ -13,11 +13,16 @@ COPY styles.css /usr/share/nginx/html/
 COPY sitemap.xml /usr/share/nginx/html/
 COPY robots.txt /usr/share/nginx/html/
 
+# Copy favicon
+COPY favicon.ico /usr/share/nginx/html/
+COPY favicon.svg /usr/share/nginx/html/
+
 # Copy images
 COPY costco_outside_square.jpg /usr/share/nginx/html/
 COPY Costco_outside.jpg /usr/share/nginx/html/
 COPY Hotdog_foodcourt.jpg /usr/share/nginx/html/
 COPY ggg-bike-logo.png /usr/share/nginx/html/
+COPY "Wholesale suffering hot dog logo.png" /usr/share/nginx/html/
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf

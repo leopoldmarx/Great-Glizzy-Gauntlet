@@ -83,6 +83,52 @@
 
         .footer a { color: var(--secondary-color); }
 
+        /* Food orders grid */
+        .food-orders-note {
+            font-size: 0.88rem;
+            color: var(--text-light);
+            margin: 0.25rem 0 1rem;
+        }
+
+        .food-orders-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem 1.5rem;
+        }
+
+        .food-order-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .food-order-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .food-order-select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            background: #fff;
+            color: var(--text-dark);
+        }
+
+        .food-order-select:disabled {
+            background: #f5f5f5;
+            color: var(--text-light);
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 480px) {
+            .food-orders-grid { grid-template-columns: 1fr; }
+        }
+
         /* Locked bonus checkboxes (GPX-verified only) */
         .locked-bonus {
             opacity: 0.5;
@@ -223,9 +269,9 @@
         
         <!-- Step 3: Submit -->
         <div class="card submission-form" id="submissionCard">
-            <h2><span class="step-number">3</span> Submit for Official Results</h2>
+            <h2><span class="step-number">3</span> Submit for Official Results & Prizes</h2>
             <p style="margin-bottom: 1.5rem; color: var(--text-light);">
-                Want to be featured on the official results page? Fill out the form below to submit your ride for review.
+                Submit your ride to appear on the official results page and qualify for prizes. Winners will be contacted by email after submissions close on May 3rd.
             </p>
             
             <form id="submissionForm">
@@ -236,7 +282,7 @@
                     </div>
                     <div class="form-group">
                         <label for="riderEmail">Email *</label>
-                        <input type="email" id="riderEmail" name="riderEmail" required placeholder="For verification only">
+                        <input type="email" id="riderEmail" name="riderEmail" required placeholder="For verification and prize contact">
                     </div>
                 </div>
                 
@@ -261,20 +307,29 @@
                     <input type="url" id="stravaLink" name="stravaLink" placeholder="https://www.strava.com/activities/...">
                 </div>
                 
+                <div class="form-group" id="foodOrdersSection" style="display:none;">
+                    <label>What did you have at each stop? 🌭 <span style="color:var(--primary-color);">*</span></label>
+                    <p class="food-orders-note">Required. Select what you ate at each Costco you visited — unvisited stops are pre-filled as Skipped. Your selections automatically verify the food-based bonus challenges below.</p>
+                    <div class="food-orders-grid" id="foodOrdersGrid"></div>
+                </div>
+
                 <div class="form-group">
-                    <label>Bonus Challenges Completed (Honor System)</label>
+                    <label>Bonus Challenges</label>
                     <div class="checkbox-group">
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="bonuses" value="hotdog_purist">
+                        <label class="checkbox-item locked-bonus" id="hotDogPuristLabel" title="Auto-detected from your food orders">
+                            <input type="checkbox" name="bonuses" value="hotdog_purist" id="hotDogPuristBonus" disabled>
                             🌭 Hot Dog Purist
+                            <span class="bonus-lock">🌭 Fill in food orders above</span>
                         </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="bonuses" value="pizza_party">
+                        <label class="checkbox-item locked-bonus" id="pizzaPartyLabel" title="Auto-detected from your food orders">
+                            <input type="checkbox" name="bonuses" value="pizza_party" id="pizzaPartyBonus" disabled>
                             🍕 Pizza Party
+                            <span class="bonus-lock">🌭 Fill in food orders above</span>
                         </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="bonuses" value="menu_master">
+                        <label class="checkbox-item locked-bonus" id="menuMasterLabel" title="Auto-detected from your food orders">
+                            <input type="checkbox" name="bonuses" value="menu_master" id="menuMasterBonus" disabled>
                             🎭 Menu Master
+                            <span class="bonus-lock">🌭 Fill in food orders above</span>
                         </label>
                         <label class="checkbox-item">
                             <input type="checkbox" name="bonuses" value="sample_collector">
@@ -359,6 +414,21 @@
         // Google Apps Script Web App URL
         const SUBMIT_URL = 'https://script.google.com/macros/s/AKfycbwuMP8IkLM5bE8vGzXUyKo_n0VLn-ZOvGNGOf32HLeZ2vx5i5uXgizPw4JqSeio_Hjp/exec';
         
+        // =====================================================
+        // FOOD COURT MENU ITEMS
+        // =====================================================
+        const MENU_ITEMS = [
+            { value: 'hotdog',           label: '🌭 Hot Dog & Soda Combo' },
+            { value: 'pizza',            label: '🍕 Pizza Slice' },
+            { value: 'chicken_bake',     label: '🍗 Chicken Bake' },
+            { value: 'turkey_sandwich',  label: '🥪 Turkey & Provolone' },
+            { value: 'berry_smoothie',   label: '🍓 Berry Smoothie' },
+            { value: 'churro',           label: '🥐 Churro' },
+            { value: 'frozen_yogurt',    label: '🍦 Frozen Yogurt' },
+            { value: 'acai_bowl',        label: '🫐 Açaí Smoothie Bowl' },
+            { value: 'skipped',          label: '⏭️ Skipped' }
+        ];
+
         // =====================================================
         // HAVERSINE DISTANCE
         // =====================================================
@@ -560,6 +630,105 @@
         }
         
         // =====================================================
+        // FOOD ORDERS & AUTO-BONUS DETECTION
+        // =====================================================
+        function initFoodOrders(vResults) {
+            const grid = document.getElementById('foodOrdersGrid');
+            const section = document.getElementById('foodOrdersSection');
+            grid.innerHTML = '';
+
+            COSTCOS.forEach(costco => {
+                const visited = vResults[costco.name]?.visited;
+
+                const item = document.createElement('div');
+                item.className = 'food-order-item';
+
+                const lbl = document.createElement('span');
+                lbl.className = 'food-order-label';
+                lbl.textContent = costco.name + (visited ? '' : ' (not visited)');
+
+                const select = document.createElement('select');
+                select.className = 'food-order-select';
+                select.dataset.costco = costco.name;
+
+                if (!visited) {
+                    const opt = document.createElement('option');
+                    opt.value = 'skipped';
+                    opt.textContent = '⏭️ Skipped';
+                    opt.selected = true;
+                    select.appendChild(opt);
+                    select.disabled = true;
+                } else {
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = 'Select...';
+                    select.appendChild(placeholder);
+
+                    MENU_ITEMS.forEach(mi => {
+                        const opt = document.createElement('option');
+                        opt.value = mi.value;
+                        opt.textContent = mi.label;
+                        select.appendChild(opt);
+                    });
+
+                    select.addEventListener('change', updateFoodBonuses);
+                }
+
+                item.appendChild(lbl);
+                item.appendChild(select);
+                grid.appendChild(item);
+            });
+
+            section.style.display = 'block';
+            updateFoodBonuses();
+        }
+
+        function updateFoodBonuses() {
+            const enabledSelects = Array.from(document.querySelectorAll('.food-order-select:not([disabled])'));
+            const selections = enabledSelects.map(s => s.value);
+            const allFilled = selections.length > 0 && selections.every(v => v !== '');
+
+            // Hot Dog Purist: every Costco you visited had a hot dog (partial completers count)
+            const isHotDogPurist = allFilled && selections.every(v => v === 'hotdog');
+
+            // Pizza Party: every Costco you visited had pizza (partial completers count)
+            const isPizzaParty = allFilled && selections.every(v => v === 'pizza');
+
+            // Menu Master: all visited stops filled, none skipped, all unique items
+            const noneSkipped = selections.every(v => v !== 'skipped');
+            const uniqueCount = new Set(selections.filter(v => v !== '')).size;
+            const isMenuMaster = allFilled && noneSkipped && uniqueCount === selections.length;
+
+            applyFoodBonus('hotDogPuristBonus', 'hotDogPuristLabel', isHotDogPurist, allFilled);
+            applyFoodBonus('pizzaPartyBonus',   'pizzaPartyLabel',   isPizzaParty,   allFilled);
+            applyFoodBonus('menuMasterBonus',   'menuMasterLabel',   isMenuMaster,   allFilled);
+        }
+
+        function applyFoodBonus(checkboxId, labelId, achieved, allFilled) {
+            const checkbox = document.getElementById(checkboxId);
+            const label    = document.getElementById(labelId);
+            const lockSpan = label?.querySelector('.bonus-lock');
+            if (!checkbox || !label || !lockSpan) return;
+
+            checkbox.disabled = true; // always locked — driven by food selections
+            if (!allFilled) {
+                checkbox.checked = false;
+                label.classList.add('locked-bonus');
+                label.classList.remove('unlocked');
+                lockSpan.textContent = '🌭 Fill in food orders above';
+            } else if (achieved) {
+                checkbox.checked = true;
+                label.classList.add('locked-bonus', 'unlocked');
+                lockSpan.textContent = '✅ Verified by food orders';
+            } else {
+                checkbox.checked = false;
+                label.classList.add('locked-bonus');
+                label.classList.remove('unlocked');
+                lockSpan.textContent = '❌ Not achieved';
+            }
+        }
+
+        // =====================================================
         // UI HANDLERS
         // =====================================================
         const uploadArea = document.getElementById('uploadArea');
@@ -669,6 +838,10 @@
             verifyBtn.disabled = true;
             resultsCard.classList.remove('show');
             submissionCard.classList.remove('show');
+            // Reset food orders
+            document.getElementById('foodOrdersSection').style.display = 'none';
+            document.getElementById('foodOrdersGrid').innerHTML = '';
+            updateFoodBonuses();
         });
         
         function displayResults(results, stats) {
@@ -799,9 +972,12 @@
                     speedDemonLabel.querySelector('.bonus-lock').textContent = '🔒 Verified by GPX';
                 }
                 
+                // Initialize food order dropdowns
+                initFoodOrders(verificationResults);
+
                 submissionCard.classList.add('show');
             }
-            
+
             resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         
@@ -813,6 +989,19 @@
 
             const submitBtn = document.getElementById('submitBtn');
             const message = document.getElementById('submitMessage');
+
+            // Validate food orders — all visited stops must have a selection
+            const unfilledFood = Array.from(document.querySelectorAll('.food-order-select:not([disabled])')).filter(s => s.value === '');
+            if (unfilledFood.length > 0) {
+                message.textContent = `⚠️ Please select what you had at all ${unfilledFood.length} remaining stop${unfilledFood.length > 1 ? 's' : ''} before submitting.`;
+                message.className = 'message error show';
+                message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Highlight the unfilled selects
+                unfilledFood.forEach(s => s.style.borderColor = '#e31837');
+                return;
+            }
+            // Clear any previous highlights
+            document.querySelectorAll('.food-order-select').forEach(s => s.style.borderColor = '');
 
             // Validate consent checkbox
             const consentCheckbox = document.getElementById('consentCheckbox');
@@ -829,6 +1018,12 @@
             const riderName = document.getElementById('riderName').value;
             const rideDate = document.getElementById('rideDate').value;
 
+            // Collect food orders
+            const foodOrdersData = {};
+            document.querySelectorAll('.food-order-select').forEach(sel => {
+                foodOrdersData[sel.dataset.costco] = sel.value;
+            });
+
             const formData = {
                 name: riderName,
                 email: document.getElementById('riderEmail').value,
@@ -838,6 +1033,7 @@
                 stravaLink: document.getElementById('stravaLink').value,
                 bonuses: Array.from(document.querySelectorAll('input[name="bonuses"]:checked'))
                     .map(cb => cb.value),
+                foodOrders: JSON.stringify(foodOrdersData),
                 comments: document.getElementById('comments').value,
                 costcosVisited: document.getElementById('costcosVisited').value,
                 gpxHash: gpxHash,

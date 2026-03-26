@@ -335,6 +335,10 @@
                             <input type="checkbox" name="bonuses" value="sample_collector">
                             🧪 Sample Collector
                         </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="ebike" value="ebike" id="ebikeCheckbox">
+                            ⚡ I used an e-bike
+                        </label>
                         <label class="checkbox-item locked-bonus" id="speedDemonLabel" title="Auto-detected from your ride data">
                             <input type="checkbox" name="bonuses" value="speed_demon" id="speedDemonBonus" disabled>
                             ⚡ Speed Demon (&lt;7h)
@@ -1034,6 +1038,7 @@
                 bonuses: Array.from(document.querySelectorAll('input[name="bonuses"]:checked'))
                     .map(cb => cb.value),
                 foodOrders: JSON.stringify(foodOrdersData),
+                ebikeUsed: document.getElementById('ebikeCheckbox').checked,
                 comments: document.getElementById('comments').value,
                 costcosVisited: document.getElementById('costcosVisited').value,
                 gpxHash: gpxHash,

@@ -2273,7 +2273,9 @@ body {
 }
 
 .prize-card-images--single .sponsor-img {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 3 / 4;
+    object-fit: contain;
+    background: #f8f8f8;
 }
 
 .sponsor-img {
@@ -2424,7 +2426,7 @@ body {
 }
 
 .sticker-img {
-    width: 300px;
+    width: 400px;
     flex-shrink: 0;
     filter: drop-shadow(0 4px 16px rgba(0,0,0,0.15));
 }

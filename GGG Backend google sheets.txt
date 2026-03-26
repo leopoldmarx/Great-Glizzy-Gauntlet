@@ -1,5 +1,5 @@
 /**
- * Great Glizzy Gauntlet - Google Apps Script Backend (v5 - Standalone)
+ * Great Glizzy Gauntlet - Google Apps Script Backend (v6 - Standalone)
  *
  * STANDALONE Apps Script project (NOT container-bound to a Sheet).
  * This version uses SpreadsheetApp.openById() and has full DriveApp access.
@@ -9,6 +9,8 @@
  * - Server-side admin token verification
  * - GPX file upload to Google Drive
  * - Consent tracking
+ * - Food orders per Costco stop (for bonus challenge verification)
+ * - E-bike flag
  *
  * SETUP INSTRUCTIONS (Standalone Project):
  * 1. Go to https://script.google.com and create a new project
@@ -26,8 +28,9 @@
  *
  * SHEET COLUMNS (in order):
  * id, name, email, rideDate, elapsedTime, avgSpeed, totalDistance, movingTime,
- * stravaLink, bonuses, comments, costcosVisited, gpxHash, gpxDriveUrl, gpxDriveId,
- * consentGiven, verificationData, submittedAt, status, year, reviewedAt
+ * stravaLink, bonuses, foodOrders, ebikeUsed, comments, costcosVisited,
+ * gpxHash, gpxDriveUrl, gpxDriveId, consentGiven, verificationData,
+ * submittedAt, status, year, reviewedAt
  */
 
 // =====================================================
@@ -35,6 +38,18 @@
 // =====================================================
 const SPREADSHEET_ID = '1AO8IO0t6S1vNyUomLG_Qci3ppcgOhj7jTNWdLjRaVvE';  // <-- Replace with your Google Sheet ID
 const SHEET_NAME = 'Submissions';
+
+/**
+ * Full expected column list (canonical order).
+ * generateColumns() uses this to add any missing columns.
+ * addSubmission() maps to headers dynamically so column order doesn't matter.
+ */
+const EXPECTED_COLUMNS = [
+  'id', 'name', 'email', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
+  'stravaLink', 'bonuses', 'foodOrders', 'ebikeUsed', 'comments', 'costcosVisited',
+  'gpxHash', 'gpxDriveUrl', 'gpxDriveId', 'consentGiven', 'verificationData',
+  'submittedAt', 'status', 'year', 'reviewedAt'
+];
 
 /**
  * Verify admin token from Script Properties
@@ -119,6 +134,7 @@ function doPost(e) {
 
 /**
  * Get the submissions sheet (standalone — uses openById)
+ * Creates the sheet with all expected columns if it doesn't exist yet.
  */
 function getSheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -126,14 +142,8 @@ function getSheet() {
 
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-
-    const headers = [
-      'id', 'name', 'email', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
-      'stravaLink', 'bonuses', 'comments', 'costcosVisited', 'gpxHash', 'gpxDriveUrl', 'gpxDriveId',
-      'consentGiven', 'verificationData', 'submittedAt', 'status', 'year', 'reviewedAt'
-    ];
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f0f0f0');
+    sheet.getRange(1, 1, 1, EXPECTED_COLUMNS.length).setValues([EXPECTED_COLUMNS]);
+    sheet.getRange(1, 1, 1, EXPECTED_COLUMNS.length).setFontWeight('bold').setBackground('#f0f0f0');
     sheet.setFrozenRows(1);
   }
 
@@ -141,7 +151,8 @@ function getSheet() {
 }
 
 /**
- * Add a new submission
+ * Add a new submission.
+ * Uses header-based column lookup so new columns never break existing data.
  */
 function addSubmission(data) {
   const sheet = getSheet();
@@ -151,32 +162,43 @@ function addSubmission(data) {
   const existingHashes = getExistingHashes();
   const isDuplicate = existingHashes.includes(data.gpxHash);
 
-  const row = [
-    id,
-    data.name || '',
-    data.email || '',
-    data.rideDate || '',
-    data.elapsedTime || '',
-    data.avgSpeed || '',
-    data.totalDistance || '',
-    data.movingTime || '',
-    data.stravaLink || '',
-    JSON.stringify(data.bonuses || []),
-    data.comments || '',
-    data.costcosVisited || 0,
-    data.gpxHash || '',
-    '',  // gpxDriveUrl - filled by separate uploadGpx call
-    '',  // gpxDriveId - filled by separate uploadGpx call
-    data.consentGiven || false,
-    data.verificationData || '',
-    data.submittedAt || new Date().toISOString(),
-    'pending',
-    data.year || new Date().getFullYear(),
-    ''
-  ];
+  // Get current headers from sheet
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  // Build a map of all field values
+  const fieldValues = {
+    id:               id,
+    name:             data.name || '',
+    email:            data.email || '',
+    rideDate:         data.rideDate || '',
+    elapsedTime:      data.elapsedTime || '',
+    avgSpeed:         data.avgSpeed || '',
+    totalDistance:    data.totalDistance || '',
+    movingTime:       data.movingTime || '',
+    stravaLink:       data.stravaLink || '',
+    bonuses:          JSON.stringify(data.bonuses || []),
+    foodOrders:       data.foodOrders || '',
+    ebikeUsed:        data.ebikeUsed || false,
+    comments:         data.comments || '',
+    costcosVisited:   data.costcosVisited || 0,
+    gpxHash:          data.gpxHash || '',
+    gpxDriveUrl:      '',   // filled by separate uploadGpx call
+    gpxDriveId:       '',   // filled by separate uploadGpx call
+    consentGiven:     data.consentGiven || false,
+    verificationData: data.verificationData || '',
+    submittedAt:      data.submittedAt || new Date().toISOString(),
+    status:           'pending',
+    year:             data.year || new Date().getFullYear(),
+    reviewedAt:       ''
+  };
+
+  // Build row array aligned to current sheet headers
+  const row = headers.map(header => {
+    return fieldValues.hasOwnProperty(header) ? fieldValues[header] : '';
+  });
 
   sheet.appendRow(row);
-  sendNotificationEmail(data, isDuplicate, '');
+  sendNotificationEmail(data, isDuplicate);
 
   return {
     success: true,
@@ -250,12 +272,12 @@ function uploadGpxFile(data) {
 function getExistingHashes() {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  
+
   if (data.length <= 1) return [];
-  
+
   const hashColumn = data[0].indexOf('gpxHash');
   const statusColumn = data[0].indexOf('status');
-  
+
   return data.slice(1)
     .filter(row => row[statusColumn] === 'approved')
     .map(row => row[hashColumn])
@@ -268,24 +290,20 @@ function getExistingHashes() {
 function getAllSubmissions() {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  
+
   if (data.length <= 1) return [];
-  
+
   const headers = data[0];
-  
+
   return data.slice(1).map(row => {
     const obj = {};
     headers.forEach((header, index) => {
       let value = row[index];
-      
-      if (header === 'bonuses' && value) {
-        try {
-          value = JSON.parse(value);
-        } catch (e) {
-          value = [];
-        }
+
+      if ((header === 'bonuses') && value) {
+        try { value = JSON.parse(value); } catch (e) { value = []; }
       }
-      
+
       obj[header] = value;
     });
     return obj;
@@ -298,39 +316,32 @@ function getAllSubmissions() {
 function getApprovedResults(year) {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  
+
   if (data.length <= 1) return [];
-  
+
   const headers = data[0];
   const statusIndex = headers.indexOf('status');
   const yearIndex = headers.indexOf('year');
-  
+
   return data.slice(1)
     .filter(row => row[statusIndex] === 'approved' && row[yearIndex] == year)
     .map(row => {
       const obj = {};
-      // Public fields only
       const publicFields = [
         'name', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
-        'stravaLink', 'bonuses', 'costcosVisited'
+        'stravaLink', 'bonuses', 'costcosVisited', 'ebikeUsed'
       ];
-      
+
       headers.forEach((header, index) => {
         if (publicFields.includes(header)) {
           let value = row[index];
-          
           if (header === 'bonuses' && value) {
-            try {
-              value = JSON.parse(value);
-            } catch (e) {
-              value = [];
-            }
+            try { value = JSON.parse(value); } catch (e) { value = []; }
           }
-          
           obj[header] = value;
         }
       });
-      
+
       return obj;
     });
 }
@@ -341,12 +352,12 @@ function getApprovedResults(year) {
 function updateSubmissionStatus(id, newStatus) {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  
+
   const headers = data[0];
   const idIndex = headers.indexOf('id');
   const statusIndex = headers.indexOf('status');
   const reviewedAtIndex = headers.indexOf('reviewedAt');
-  
+
   for (let i = 1; i < data.length; i++) {
     if (data[i][idIndex] == id) {
       sheet.getRange(i + 1, statusIndex + 1).setValue(newStatus);
@@ -354,17 +365,30 @@ function updateSubmissionStatus(id, newStatus) {
       return { success: true, message: `Status updated to ${newStatus}` };
     }
   }
-  
+
   return { success: false, message: 'Submission not found' };
 }
 
 /**
  * Send notification email
  */
-function sendNotificationEmail(data, isDuplicate, gpxDriveUrl) {
-  const ADMIN_EMAIL = 'leopoldmarx@gmail.com'; // Change if needed
+function sendNotificationEmail(data, isDuplicate) {
+  const ADMIN_EMAIL = 'leopoldmarx@gmail.com';
 
   const subject = `🌭 New GGG Submission: ${data.name}${isDuplicate ? ' ⚠️ POSSIBLE DUPLICATE' : ''}`;
+
+  // Parse food orders for readable display
+  let foodOrdersDisplay = 'Not provided';
+  if (data.foodOrders) {
+    try {
+      const orders = JSON.parse(data.foodOrders);
+      foodOrdersDisplay = Object.entries(orders)
+        .map(([stop, item]) => `  ${stop}: ${item || 'not filled'}`)
+        .join('\n');
+    } catch (e) {
+      foodOrdersDisplay = data.foodOrders;
+    }
+  }
 
   const body = `
 New Great Glizzy Gauntlet submission received!
@@ -373,6 +397,7 @@ Rider: ${data.name}
 Email: ${data.email}
 Ride Date: ${data.rideDate}
 Costcos Visited: ${data.costcosVisited}/10
+E-bike: ${data.ebikeUsed ? 'Yes' : 'No'}
 
 Challenge Time: ${data.elapsedTime || 'Not calculated'}
 Average Speed: ${data.avgSpeed || 'Not calculated'}
@@ -381,14 +406,16 @@ Total Distance: ${data.totalDistance ? data.totalDistance + ' mi' : 'Not calcula
 Strava Link: ${data.stravaLink || 'Not provided'}
 Claimed Bonuses: ${(data.bonuses || []).join(', ') || 'None'}
 Comments: ${data.comments || 'None'}
-GPX File: ${gpxDriveUrl || 'Not uploaded'}
 Data Consent: ${data.consentGiven ? 'Yes' : 'No'}
+
+Food Orders:
+${foodOrdersDisplay}
 
 ${isDuplicate ? '⚠️ WARNING: This GPX hash matches an existing approved submission!' : ''}
 
 Review this submission at: https://ggg.lmarx.com/admin
   `;
-  
+
   try {
     MailApp.sendEmail(ADMIN_EMAIL, subject, body);
   } catch (e) {
@@ -397,64 +424,38 @@ Review this submission at: https://ggg.lmarx.com/admin
 }
 
 /**
- * Setup/reset the sheet structure
- * Run this after updating the code to add new columns
+ * =====================================================
+ * generateColumns() — RUN THIS after any code update
+ * =====================================================
+ * Checks the sheet for all expected columns and adds
+ * any that are missing. Safe to run on a sheet with
+ * existing data — never deletes or reorders columns.
+ *
+ * Returns a summary of what was added (or confirms
+ * everything is already in place).
  */
-function setupSheet() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-  // Delete existing sheet
-  const existingSheet = ss.getSheetByName(SHEET_NAME);
-  if (existingSheet) {
-    ss.deleteSheet(existingSheet);
-  }
-
-  const sheet = ss.insertSheet(SHEET_NAME);
-  
-  const headers = [
-    'id', 'name', 'email', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
-    'stravaLink', 'bonuses', 'comments', 'costcosVisited', 'gpxHash', 'gpxDriveUrl', 'gpxDriveId',
-    'consentGiven', 'verificationData', 'submittedAt', 'status', 'year', 'reviewedAt'
-  ];
-
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f0f0f0');
-  sheet.setFrozenRows(1);
-
-  // Set column widths
-  const widths = [120, 150, 200, 100, 80, 80, 100, 100, 250, 200, 250, 80, 120, 250, 120, 80, 300, 180, 80, 60, 180];
-  widths.forEach((w, i) => sheet.setColumnWidth(i + 1, w));
-
-  return 'Sheet setup complete with new columns!';
-}
-
-/**
- * Add new columns to existing sheet (if you don't want to reset)
- * Run this if you already have data and want to add the new columns
- */
-function addNewColumnsToExistingSheet() {
+function generateColumns() {
   const sheet = getSheet();
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  // Check if new columns already exist
-  const newColumns = ['avgSpeed', 'totalDistance', 'movingTime'];
-  const columnsToAdd = newColumns.filter(col => !headers.includes(col));
+  const missing = EXPECTED_COLUMNS.filter(col => !currentHeaders.includes(col));
 
-  if (columnsToAdd.length === 0) {
-    return 'All columns already exist!';
+  if (missing.length === 0) {
+    console.log('✅ All columns present: ' + EXPECTED_COLUMNS.join(', '));
+    return '✅ All ' + EXPECTED_COLUMNS.length + ' columns already present — nothing to add.';
   }
 
-  // Find position after elapsedTime
-  const elapsedTimeIndex = headers.indexOf('elapsedTime');
-  const insertPosition = elapsedTimeIndex + 2; // +1 for 1-based, +1 to insert after
-
-  // Insert new columns
-  columnsToAdd.forEach((colName, i) => {
-    sheet.insertColumnAfter(insertPosition + i - 1);
-    sheet.getRange(1, insertPosition + i).setValue(colName);
+  // Append missing columns at the end
+  const startCol = currentHeaders.length + 1;
+  missing.forEach((colName, i) => {
+    const col = startCol + i;
+    sheet.getRange(1, col).setValue(colName).setFontWeight('bold').setBackground('#f0f0f0');
+    sheet.setColumnWidth(col, 180);
   });
 
-  return `Added columns: ${columnsToAdd.join(', ')}`;
+  const msg = `✅ Added ${missing.length} missing column(s): ${missing.join(', ')}`;
+  console.log(msg);
+  return msg;
 }
 
 /**
@@ -462,39 +463,9 @@ function addNewColumnsToExistingSheet() {
  * Folder must be created manually and ID set in Script Properties (GPX_FOLDER_ID)
  */
 function getOrCreateGpxFolder() {
-
   const scriptProperties = PropertiesService.getScriptProperties();
   const folderId = scriptProperties.getProperty('GPX_FOLDER_ID');
-
   return folderId;
-}
-
-/**
- * Add GPX Drive and consent columns to existing sheet
- * Run this ONCE before deploying the updated Apps Script
- */
-function addGpxAndConsentColumns() {
-  const sheet = getSheet();
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  const gpxHashIndex = headers.indexOf('gpxHash');
-  if (gpxHashIndex === -1) return 'gpxHash column not found!';
-
-  const columnsToAdd = [];
-  if (!headers.includes('gpxDriveUrl')) columnsToAdd.push('gpxDriveUrl');
-  if (!headers.includes('gpxDriveId')) columnsToAdd.push('gpxDriveId');
-  if (!headers.includes('consentGiven')) columnsToAdd.push('consentGiven');
-
-  if (columnsToAdd.length === 0) return 'All columns already exist!';
-
-  // Insert after gpxHash
-  let insertPos = gpxHashIndex + 2; // +1 for 1-based, +1 to insert after
-  columnsToAdd.forEach((colName, i) => {
-    sheet.insertColumnAfter(insertPos + i - 1);
-    sheet.getRange(1, insertPos + i).setValue(colName);
-  });
-
-  return `Added columns: ${columnsToAdd.join(', ')}`;
 }
 
 /**
@@ -529,7 +500,7 @@ function authorizeDriveAccess() {
   if (sheet) {
     console.log('Sheet "' + SHEET_NAME + '" found with ' + sheet.getLastRow() + ' rows');
   } else {
-    console.log('Sheet "' + SHEET_NAME + '" not found — run setupSheet() or check SHEET_NAME');
+    console.log('Sheet "' + SHEET_NAME + '" not found — run generateColumns() or check SHEET_NAME');
   }
 
   return 'All access verified! Ready to deploy.';

@@ -23,6 +23,8 @@ COPY Costco_outside.jpg /usr/share/nginx/html/
 COPY Hotdog_foodcourt.jpg /usr/share/nginx/html/
 COPY ggg-bike-logo.png /usr/share/nginx/html/
 COPY wholesale-hotdog-logo.png /usr/share/nginx/html/
+COPY SessionCo_778.jpg /usr/share/nginx/html/
+COPY Sessionco_beer.jpeg /usr/share/nginx/html/
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf

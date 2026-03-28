@@ -103,6 +103,12 @@
         /* Loading without display:none */
         .loading { display: block; }
 
+        .food-cell {
+            font-size: 0.9rem;
+            white-space: nowrap;
+            letter-spacing: 0.05em;
+        }
+
         @media (max-width: 768px) {
             h1 { font-size: 2rem; }
             .nav-links a { margin-left: 1rem; font-size: 0.9rem; }
@@ -168,6 +174,7 @@
                         <th>Costcos</th>
                         <th>Time</th>
                         <th>Avg MPH</th>
+                        <th>Food</th>
                         <th>Achievements</th>
                         <th>Link</th>
                     </tr>
@@ -209,6 +216,21 @@
         // Fixed to 2026 for now
         const CURRENT_YEAR = 2026;
         
+        // Food emoji mapping (matches verify.html MENU_ITEMS values)
+        const FOOD_EMOJI_MAP = {
+            'hotdog':              '🌭',
+            'pizza':               '🍕',
+            'chicken_bake':        '🍗',
+            'calzone':             '🫓',
+            'turkey_sandwich':     '🥪',
+            'chicken_salad':       '🥗',
+            'cold_brew_mocha':     '☕',
+            'strawberry_smoothie': '🍓',
+            'ice_cream':           '🍦',
+            'cookie':              '🍪',
+            'skipped':             '⏭️'
+        };
+
         // Badge mapping
         const BADGE_MAP = {
             'hotdog_purist': { label: '🌭', title: 'Hot Dog Purist', class: 'badge-hotdog' },
@@ -300,21 +322,32 @@
         function displayResults(data, year) {
             const tbody = document.getElementById('resultsBody');
             
-            // Sort by time (fastest first), then by costcos visited
+            // Ranking: (1) most Costcos visited, (2) fewest food skips, (3) fastest time
+            const getSkipCount = (r) => {
+                if (!r.foodOrders) return 0;
+                try {
+                    const orders = JSON.parse(r.foodOrders);
+                    return Object.values(orders).filter(v => v === 'skipped').length;
+                } catch (e) { return 0; }
+            };
+
+            const getTime = (r) => {
+                const elapsed = parseInt(r.elapsedTime);
+                if (!isNaN(elapsed) && elapsed > 1000000) return elapsed;
+                const moving = parseInt(r.movingTime);
+                if (!isNaN(moving) && moving > 0) return moving;
+                return Infinity;
+            };
+
             data.sort((a, b) => {
-                // First, prioritize 10/10 completions
+                // 1. Most Costcos visited first
                 if (b.costcosVisited !== a.costcosVisited) {
                     return b.costcosVisited - a.costcosVisited;
                 }
-
-                // Then sort by elapsedTime or movingTime (milliseconds)
-                const getTime = (r) => {
-                    const elapsed = parseInt(r.elapsedTime);
-                    if (!isNaN(elapsed) && elapsed > 1000000) return elapsed;
-                    const moving = parseInt(r.movingTime);
-                    if (!isNaN(moving) && moving > 0) return moving;
-                    return Infinity;
-                };
+                // 2. Fewest food skips (0 skips ranks highest — any skip drops you below clean eaters)
+                const skipDiff = getSkipCount(a) - getSkipCount(b);
+                if (skipDiff !== 0) return skipDiff;
+                // 3. Fastest time as tiebreaker
                 return getTime(a) - getTime(b);
             });
             
@@ -347,6 +380,7 @@
                         <td class="costco-count ${costcoClass}">${rider.costcosVisited}/10</td>
                         <td class="time-cell">${formatElapsedTime(rider.elapsedTime) || formatMovingTime(rider.movingTime) || '-'}</td>
                         <td class="speed-cell">${avgSpeed}</td>
+                        <td class="food-cell">${renderFoodSummary(rider.foodOrders)}</td>
                         <td>${badges || '-'}</td>
                         <td>${stravaLink}</td>
                     </tr>
@@ -394,6 +428,30 @@
             return null;
         }
         
+        function renderFoodSummary(foodOrdersJson) {
+            if (!foodOrdersJson) return '-';
+            try {
+                const orders = JSON.parse(foodOrdersJson);
+                const counts = {};
+                // Preserve a sensible display order: skipped last
+                const ORDER = ['hotdog','pizza','chicken_bake','calzone','turkey_sandwich',
+                               'chicken_salad','cold_brew_mocha','strawberry_smoothie','ice_cream','cookie','skipped'];
+                Object.values(orders).forEach(item => {
+                    const emoji = FOOD_EMOJI_MAP[item] || '❓';
+                    counts[item] = (counts[item] || 0) + 1;
+                });
+                return ORDER
+                    .filter(key => counts[key] > 0)
+                    .map(key => {
+                        const emoji = FOOD_EMOJI_MAP[key] || '❓';
+                        return counts[key] > 1 ? `${emoji}×${counts[key]}` : emoji;
+                    })
+                    .join(' ') || '-';
+            } catch (e) {
+                return '-';
+            }
+        }
+
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');

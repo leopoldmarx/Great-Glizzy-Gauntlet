@@ -329,7 +329,7 @@ function getApprovedResults(year) {
       const obj = {};
       const publicFields = [
         'name', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance', 'movingTime',
-        'stravaLink', 'bonuses', 'costcosVisited', 'ebikeUsed'
+        'stravaLink', 'bonuses', 'foodOrders', 'costcosVisited', 'ebikeUsed'
       ];
 
       headers.forEach((header, index) => {

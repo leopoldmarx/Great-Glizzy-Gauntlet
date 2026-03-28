@@ -128,6 +128,29 @@
             letter-spacing: 0.05em;
         }
 
+        .food-group {
+            cursor: default;
+            display: inline-block;
+        }
+
+        .ebike-tag {
+            font-size: 0.75rem;
+            margin-left: 0.3rem;
+            opacity: 0.75;
+            vertical-align: middle;
+        }
+
+        .ebike-divider td {
+            background: #fff8e1;
+            color: #7a5c00;
+            text-align: center;
+            padding: 0.45rem 1rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border-top: 2px dashed #ffc107;
+            border-bottom: 1px solid #ffe082;
+        }
+
         @media (max-width: 768px) {
             h1 { font-size: 2rem; }
             .nav-links a { margin-left: 1rem; font-size: 0.9rem; }
@@ -259,6 +282,21 @@
             'skipped':             '⏭️'
         };
 
+        // Food label mapping for hover tooltips
+        const FOOD_LABEL_MAP = {
+            'hotdog':              'Hot Dog',
+            'pizza':               'Pizza Slice',
+            'chicken_bake':        'Chicken Bake',
+            'calzone':             'Calzone',
+            'turkey_sandwich':     'Hot Turkey & Provolone Sandwich',
+            'chicken_salad':       'Chicken Salad',
+            'cold_brew_mocha':     'Cold Brew Mocha Freeze',
+            'strawberry_smoothie': 'Strawberry Banana Smoothie',
+            'ice_cream':           'Ice Cream',
+            'cookie':              'Cookie',
+            'skipped':             'Skipped'
+        };
+
         // Badge mapping
         const BADGE_MAP = {
             'hotdog_purist': { label: '🌭', title: 'Hot Dog Purist', class: 'badge-hotdog' },
@@ -349,8 +387,9 @@
         
         function displayResults(data, year) {
             const tbody = document.getElementById('resultsBody');
-            
-            // Ranking: (1) most Costcos visited, (2) fewest food skips, (3) fastest time
+
+            const isEbike = (r) => r.ebikeUsed === true || r.ebikeUsed === 'true' || r.ebikeUsed === 'TRUE';
+
             const getSkipCount = (r) => {
                 if (!r.foodOrders) return 0;
                 try {
@@ -367,53 +406,60 @@
                 return Infinity;
             };
 
-            data.sort((a, b) => {
-                // 1. Most Costcos visited first
-                if (b.costcosVisited !== a.costcosVisited) {
-                    return b.costcosVisited - a.costcosVisited;
-                }
-                // 2. Fewest food skips (0 skips ranks highest — any skip drops you below clean eaters)
+            // Ranking comparator: costcos visited → fewest skips → fastest time
+            const rankSort = (a, b) => {
+                if (b.costcosVisited !== a.costcosVisited) return b.costcosVisited - a.costcosVisited;
                 const skipDiff = getSkipCount(a) - getSkipCount(b);
                 if (skipDiff !== 0) return skipDiff;
-                // 3. Fastest time as tiebreaker
                 return getTime(a) - getTime(b);
-            });
-            
-            tbody.innerHTML = data.map((rider, index) => {
-                const rank = index + 1;
+            };
+
+            // Split into human-powered and e-bike, each sorted by the same ranking
+            const humanRiders = data.filter(r => !isEbike(r)).sort(rankSort);
+            const ebikeRiders = data.filter(r =>  isEbike(r)).sort(rankSort);
+
+            const buildRow = (rider, rank, rankLabel) => {
                 const rankClass = rank <= 3 ? `rank-${rank}` : '';
-                const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
-                
+                const rankIcon = rankLabel !== null ? rankLabel
+                    : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank);
+
                 const costcoClass = rider.costcosVisited >= 10 ? 'complete' : '';
-                
+
                 const badges = (rider.bonuses || []).map(b => {
                     const badge = BADGE_MAP[b];
-                    if (badge) {
-                        return `<span class="badge ${badge.class}" title="${badge.title}">${badge.label}</span>`;
-                    }
-                    return '';
+                    return badge ? `<span class="badge ${badge.class}" title="${badge.title}">${badge.label}</span>` : '';
                 }).join('');
-                
-                const stravaLink = rider.stravaLink 
+
+                const stravaLink = rider.stravaLink
                     ? `<a href="${rider.stravaLink}" target="_blank" class="strava-link">View</a>`
                     : '-';
-                
-                const avgSpeed = rider.avgSpeed || '-';
-                
+
+                const ebikeTag = isEbike(rider) ? `<span class="ebike-tag" title="E-Bike">🔋</span>` : '';
+
                 return `
                     <tr>
                         <td class="rank ${rankClass}">${rankIcon}</td>
-                        <td class="rider-name">${escapeHtml(rider.name)}</td>
+                        <td class="rider-name">${escapeHtml(rider.name)}${ebikeTag}</td>
                         <td>${formatDate(rider.rideDate)}</td>
                         <td class="costco-count ${costcoClass}">${rider.costcosVisited}/10</td>
                         <td class="time-cell">${formatElapsedTime(rider.elapsedTime) || formatMovingTime(rider.movingTime) || '-'}</td>
-                        <td class="speed-cell">${avgSpeed}</td>
+                        <td class="speed-cell">${rider.avgSpeed || '-'}</td>
                         <td class="food-cell">${renderFoodSummary(rider.foodOrders)}</td>
                         <td>${badges || '-'}</td>
                         <td>${stravaLink}</td>
                     </tr>
                 `;
-            }).join('');
+            };
+
+            const humanRows = humanRiders.map((rider, i) => buildRow(rider, i + 1, null));
+
+            const dividerRow = ebikeRiders.length > 0
+                ? `<tr class="ebike-divider"><td colspan="9">🔋 E-Bike Riders &mdash; ineligible for prizes</td></tr>`
+                : '';
+
+            const ebikeRows = ebikeRiders.map((rider, i) => buildRow(rider, i + 1, `E${i + 1}`));
+
+            tbody.innerHTML = humanRows.join('') + dividerRow + ebikeRows.join('');
         }
         
         // =====================================================
@@ -461,20 +507,23 @@
             try {
                 const orders = JSON.parse(foodOrdersJson);
                 const counts = {};
-                // Preserve a sensible display order: skipped last
                 const ORDER = ['hotdog','pizza','chicken_bake','calzone','turkey_sandwich',
                                'chicken_salad','cold_brew_mocha','strawberry_smoothie','ice_cream','cookie','skipped'];
                 Object.values(orders).forEach(item => {
-                    const emoji = FOOD_EMOJI_MAP[item] || '❓';
                     counts[item] = (counts[item] || 0) + 1;
                 });
-                return ORDER
+                const result = ORDER
                     .filter(key => counts[key] > 0)
                     .map(key => {
-                        const emoji = FOOD_EMOJI_MAP[key] || '❓';
-                        return counts[key] > 1 ? `${emoji}×${counts[key]}` : emoji;
+                        const emoji  = FOOD_EMOJI_MAP[key]  || '❓';
+                        const label  = FOOD_LABEL_MAP[key]  || key;
+                        const count  = counts[key];
+                        const display    = count > 1 ? `${emoji}×${count}` : emoji;
+                        const titleText  = count > 1 ? `${label} ×${count}` : label;
+                        return `<span class="food-group" title="${titleText}">${display}</span>`;
                     })
-                    .join(' ') || '-';
+                    .join(' ');
+                return result || '-';
             } catch (e) {
                 return '-';
             }

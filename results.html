@@ -103,6 +103,25 @@
         /* Loading without display:none */
         .loading { display: block; }
 
+        .ranking-note {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            background: #f8f9fa;
+            border-left: 3px solid var(--primary-color);
+            padding: 0.6rem 1rem;
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem 0.4rem;
+            align-items: center;
+        }
+
+        .ranking-sep {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
         .food-cell {
             font-size: 0.9rem;
             white-space: nowrap;
@@ -164,7 +183,16 @@
         <!-- Results Table -->
         <div class="results-card" id="resultsCard" style="display: none;">
             <h2>🌭 2026 Finishers</h2>
-            
+
+            <p class="ranking-note">
+                📊 <strong>Ranking:</strong>
+                <span>① Most Costcos visited</span>
+                <span class="ranking-sep">→</span>
+                <span>② Fewest food stops skipped <em>(any skip drops you below clean eaters)</em></span>
+                <span class="ranking-sep">→</span>
+                <span>③ Fastest time</span>
+            </p>
+
             <table class="results-table">
                 <thead>
                     <tr>

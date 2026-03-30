@@ -19,7 +19,6 @@ COPY favicon.svg /usr/share/nginx/html/
 
 # Copy images
 COPY costco_outside_square.jpg /usr/share/nginx/html/
-COPY Costco_outside.jpg /usr/share/nginx/html/
 COPY Hotdog_foodcourt.jpg /usr/share/nginx/html/
 COPY ggg-bike-logo.png /usr/share/nginx/html/
 COPY wholesale-hotdog-logo.png /usr/share/nginx/html/

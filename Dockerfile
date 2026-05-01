@@ -18,6 +18,7 @@ COPY favicon.ico /usr/share/nginx/html/
 COPY favicon.svg /usr/share/nginx/html/
 
 # Copy images
+COPY Great_Glizzy_Gauntlet.gpx /usr/share/nginx/html/
 COPY costco_outside_square.jpg /usr/share/nginx/html/
 COPY Hotdog_foodcourt.jpg /usr/share/nginx/html/
 COPY ggg-bike-logo.png /usr/share/nginx/html/

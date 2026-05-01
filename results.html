@@ -141,14 +141,20 @@
         }
 
         .ebike-divider td {
-            background: #fff8e1;
-            color: #7a5c00;
+            background: #e0f2fe;
+            color: #0369a1;
             text-align: center;
             padding: 0.45rem 1rem;
             font-size: 0.82rem;
             font-weight: 600;
-            border-top: 2px dashed #ffc107;
-            border-bottom: 1px solid #ffe082;
+            border-top: 2px dashed #38bdf8;
+            border-bottom: 1px solid #bae6fd;
+        }
+
+        /* E-bike rank numbers (E1, E2 …) — electric blue, high contrast on white */
+        .rank-ebike {
+            color: #0284c7;
+            font-weight: 900;
         }
 
         @media (max-width: 768px) {
@@ -234,6 +240,16 @@
                 <tbody id="resultsBody">
                 </tbody>
             </table>
+
+            <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: #f8f9fa; border-radius: 8px; font-size: 0.88rem; color: #555;">
+                <strong>How riders are ranked:</strong>
+                <ol style="margin: 0.5rem 0 0.25rem 1.2rem; line-height: 2;">
+                    <li><strong>Most Costcos visited</strong> — more stops always ranks higher, regardless of time</li>
+                    <li><strong>Fewest food stops skipped</strong> — any skip drops you below clean eaters at the same stop count</li>
+                    <li><strong>Fastest elapsed time</strong> — Costco #1 departure to Costco #10 arrival</li>
+                </ol>
+                <p style="margin: 0.25rem 0 0;">🔋 E-bike riders appear in a separate section and compete for their own category prizes.</p>
+            </div>
         </div>
         
         <!-- Empty State -->
@@ -420,7 +436,8 @@
             const ebikeRiders = data.filter(r =>  isEbike(r)).sort(rankSort);
 
             const buildRow = (rider, rank, rankLabel) => {
-                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                // E-bike rows get their own class; human rows use gold/silver/bronze for top 3
+                const rankClass = rankLabel !== null ? 'rank-ebike' : (rank <= 3 ? `rank-${rank}` : '');
                 const rankIcon = rankLabel !== null ? rankLabel
                     : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank);
 
@@ -455,7 +472,7 @@
             const humanRows = humanRiders.map((rider, i) => buildRow(rider, i + 1, null));
 
             const dividerRow = ebikeRiders.length > 0
-                ? `<tr class="ebike-divider"><td colspan="9">🔋 E-Bike Riders &mdash; ineligible for prizes</td></tr>`
+                ? `<tr class="ebike-divider"><td colspan="9">🔋 E-Bike Category &mdash; separate prizes</td></tr>`
                 : '';
 
             const ebikeRows = ebikeRiders.map((rider, i) => buildRow(rider, i + 1, `E${i + 1}`));

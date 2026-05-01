@@ -199,6 +199,7 @@ function addSubmission(data) {
 
   sheet.appendRow(row);
   sendNotificationEmail(data, isDuplicate);
+  sendConfirmationEmail(data);          // rider confirmation
 
   return {
     success: true,
@@ -362,11 +363,169 @@ function updateSubmissionStatus(id, newStatus) {
     if (data[i][idIndex] == id) {
       sheet.getRange(i + 1, statusIndex + 1).setValue(newStatus);
       sheet.getRange(i + 1, reviewedAtIndex + 1).setValue(new Date().toISOString());
+      sendStatusUpdateEmail(data[i], headers, newStatus);  // notify rider
       return { success: true, message: `Status updated to ${newStatus}` };
     }
   }
 
   return { success: false, message: 'Submission not found' };
+}
+
+/**
+ * Send confirmation email to the rider after submission
+ */
+function sendConfirmationEmail(data) {
+  if (!data.email) return;
+
+  const name = data.name || 'Rider';
+  const costcosVisited = data.costcosVisited || 0;
+  const rideDate = data.rideDate || '';
+
+  // Format elapsed time (stored as ms)
+  let timeDisplay = '';
+  const ms = parseInt(data.elapsedTime);
+  if (!isNaN(ms) && ms > 0) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    timeDisplay = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  const htmlBody = `
+    <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#333;">
+      <div style="background:#e31837;padding:1.5rem;border-radius:10px 10px 0 0;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:1.5rem;">🌭 Great Glizzy Gauntlet</h1>
+      </div>
+      <div style="background:#fff;padding:2rem;border:1px solid #eee;border-top:none;border-radius:0 0 10px 10px;">
+        <h2 style="color:#e31837;margin-top:0;">Ride Received! 🚴</h2>
+        <p>Hey ${name},</p>
+        <p>We got your submission — thanks for taking on the Gauntlet!</p>
+        <div style="background:#f8f9fa;border-radius:8px;padding:1rem 1.5rem;margin:1.5rem 0;">
+          ${rideDate   ? `<p style="margin:0.25rem 0;"><strong>Ride date:</strong> ${rideDate}</p>` : ''}
+          <p style="margin:0.25rem 0;"><strong>Costcos visited:</strong> ${costcosVisited}/10</p>
+          ${timeDisplay ? `<p style="margin:0.25rem 0;"><strong>Challenge time:</strong> ${timeDisplay}</p>` : ''}
+        </div>
+        <p>We'll review your ride and send you an update once it's verified — usually within a day or two.</p>
+        <p>While you wait, check the <a href="https://ggg.lmarx.com/results" style="color:#e31837;">results page</a> to see how others are doing.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:1.5rem 0;">
+        <p style="font-size:0.85rem;color:#888;margin:0;">Questions? Reply to this email or reach us at <a href="mailto:ggg@lmarx.com" style="color:#888;">ggg@lmarx.com</a></p>
+        <p style="font-size:0.85rem;color:#888;margin:0.5rem 0 0;">— The GGG Team 🌭</p>
+      </div>
+    </div>`;
+
+  try {
+    MailApp.sendEmail({
+      to: data.email,
+      subject: '🌭 GGG — Ride received, we\'ll review it soon!',
+      htmlBody: htmlBody,
+      replyTo: 'leopoldmarx@gmail.com',
+      name: 'Great Glizzy Gauntlet'
+    });
+  } catch (e) {
+    console.log('Could not send confirmation email:', e);
+  }
+}
+
+/**
+ * Send status-update email to the rider when a submission is approved / rejected / duplicated
+ * rowData  — the raw sheet row array for this submission
+ * headers  — the sheet header row array
+ * newStatus — 'approved' | 'rejected' | 'duplicate'
+ */
+function sendStatusUpdateEmail(rowData, headers, newStatus) {
+  const get = col => rowData[headers.indexOf(col)] || '';
+
+  const email          = get('email');
+  const name           = get('name') || 'Rider';
+  const costcosVisited = get('costcosVisited') || 0;
+  const rideDate       = get('rideDate');
+
+  if (!email) return;
+
+  // Format elapsed time
+  let timeDisplay = '';
+  const ms = parseInt(get('elapsedTime'));
+  if (!isNaN(ms) && ms > 0) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    timeDisplay = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  const statsBlock = `
+    <div style="background:#f8f9fa;border-radius:8px;padding:1rem 1.5rem;margin:1.5rem 0;">
+      ${rideDate    ? `<p style="margin:0.25rem 0;"><strong>Ride date:</strong> ${rideDate}</p>` : ''}
+      <p style="margin:0.25rem 0;"><strong>Costcos visited:</strong> ${costcosVisited}/10</p>
+      ${timeDisplay ? `<p style="margin:0.25rem 0;"><strong>Challenge time:</strong> ${timeDisplay}</p>` : ''}
+    </div>`;
+
+  let subject, headline, bodyHtml;
+
+  if (newStatus === 'approved') {
+    subject  = '✅ GGG — Ride approved, you\'re on the leaderboard!';
+    headline = '✅ Ride Approved!';
+    bodyHtml = `
+      <p>Hey ${name},</p>
+      <p>Great news — your ride has been <strong style="color:#28a745;">approved</strong> and you're on the official leaderboard! 🎉</p>
+      ${statsBlock}
+      <p>
+        <a href="https://ggg.lmarx.com/results"
+           style="background:#e31837;color:white;padding:0.6rem 1.4rem;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">
+          View the Leaderboard →
+        </a>
+      </p>
+      <p style="margin-top:1.5rem;font-size:0.9rem;color:#555;">
+        Prize winners will be contacted separately after submissions close on May 3rd.
+      </p>`;
+
+  } else if (newStatus === 'rejected') {
+    subject  = '❌ GGG — Verification issue with your ride';
+    headline = 'Verification Issue';
+    bodyHtml = `
+      <p>Hey ${name},</p>
+      <p>Unfortunately we weren't able to verify your ride submission. This usually happens when the GPX file doesn't cover the required Costco locations, or had a data issue.</p>
+      <p>If you think this is a mistake, just reply to this email with your Strava / activity link and we'll take another look.</p>
+      <p style="font-size:0.9rem;color:#555;">
+        You can also re-submit at <a href="https://ggg.lmarx.com/verify" style="color:#e31837;">ggg.lmarx.com/verify</a> with a corrected file.
+      </p>`;
+
+  } else if (newStatus === 'duplicate') {
+    subject  = '🔄 GGG — Duplicate submission detected';
+    headline = 'Duplicate Submission';
+    bodyHtml = `
+      <p>Hey ${name},</p>
+      <p>Your submission appears to match a GPX file we already have on record. Duplicates aren't added to the leaderboard.</p>
+      <p>If you think this is wrong, reply to this email and we'll look into it.</p>`;
+
+  } else {
+    return; // don't email on unknown statuses
+  }
+
+  const htmlBody = `
+    <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#333;">
+      <div style="background:#e31837;padding:1.5rem;border-radius:10px 10px 0 0;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:1.5rem;">🌭 Great Glizzy Gauntlet</h1>
+      </div>
+      <div style="background:#fff;padding:2rem;border:1px solid #eee;border-top:none;border-radius:0 0 10px 10px;">
+        <h2 style="color:#e31837;margin-top:0;">${headline}</h2>
+        ${bodyHtml}
+        <hr style="border:none;border-top:1px solid #eee;margin:1.5rem 0;">
+        <p style="font-size:0.85rem;color:#888;margin:0;">Questions? Reply to this email or reach us at <a href="mailto:ggg@lmarx.com" style="color:#888;">ggg@lmarx.com</a></p>
+        <p style="font-size:0.85rem;color:#888;margin:0.5rem 0 0;">— The GGG Team 🌭</p>
+      </div>
+    </div>`;
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: subject,
+      htmlBody: htmlBody,
+      replyTo: 'leopoldmarx@gmail.com',
+      name: 'Great Glizzy Gauntlet'
+    });
+  } catch (e) {
+    console.log('Could not send status update email to ' + email + ':', e);
+  }
 }
 
 /**

@@ -399,16 +399,16 @@
         // COSTCO LOCATIONS
         // =====================================================
         const COSTCOS = [
-            { name: "Orem", lat: 40.28056298936492, lon: -111.67989096390991, mile: 3.1 },
-            { name: "Lehi", lat: 40.38930244722512, lon: -111.82281926596582, mile: 20.9 },
-            { name: "Saratoga Springs", lat: 40.3813625264605, lon: -111.91846628756342, mile: 26.4 },
-            { name: "Riverton", lat: 40.51326031602138, lon: -112.00193679057458, mile: 42.4 },
-            { name: "South Jordan", lat: 40.56004657032966, lon: -111.97541047830654, mile: 46.9 },
-            { name: "Sandy", lat: 40.549869250400754, lon: -111.8943388234441, mile: 52.0 },
-            { name: "Murray", lat: 40.65774477283043, lon: -111.88997616091126, mile: 64.6 },
-            { name: "West Valley", lat: 40.690548404589144, lon: -111.95432454852087, mile: 70.9 },
-            { name: "Salt Lake City", lat: 40.73088295779431, lon: -111.90172671952065, mile: 77.7 },
-            { name: "Bountiful", lat: 40.89003698423399, lon: -111.894651184651, mile: 98.9 }
+            { name: "Orem",             lat: 40.28056298936492,  lon: -111.67989096390991, mile: 3.1  },
+            { name: "Lehi",             lat: 40.38930244722512,  lon: -111.82281926596582, mile: 20.8 },
+            { name: "Saratoga Springs", lat: 40.3813625264605,   lon: -111.91846628756342, mile: 26.3 },
+            { name: "Riverton",         lat: 40.51326031602138,  lon: -112.00193679057458, mile: 42.2 },
+            { name: "South Jordan",     lat: 40.56004657032966,  lon: -111.97541047830654, mile: 46.6 },
+            { name: "Sandy",            lat: 40.549869250400754, lon: -111.8943388234441,  mile: 51.7 },
+            { name: "Murray",           lat: 40.65774477283043,  lon: -111.88997616091126, mile: 64.3 },
+            { name: "West Valley",      lat: 40.690548404589144, lon: -111.95432454852087, mile: 70.6 },
+            { name: "Salt Lake City",   lat: 40.73088295779431,  lon: -111.90172671952065, mile: 78.8 },
+            { name: "Bountiful",        lat: 40.89003698423399,  lon: -111.894651184651,   mile: 99.3 }
         ];
         
         const SPANISH_FORK = { name: "Spanish Fork", lat: 40.12397045132009, lon: -111.64918094717243, mile: 0 };
@@ -450,6 +450,23 @@
         }
         
         function toRad(deg) { return deg * (Math.PI / 180); }
+
+        // =====================================================
+        // TRACK DOWNSAMPLING (for admin route comparison)
+        // =====================================================
+        function downsampleTrack(points, maxPoints) {
+            const valid = points.filter(p => !isNaN(p.lat) && !isNaN(p.lon));
+            if (valid.length <= maxPoints) {
+                return valid.map(p => [p.lat, p.lon]);
+            }
+            const step = valid.length / maxPoints;
+            const sampled = [];
+            for (let i = 0; i < maxPoints; i++) {
+                const idx = Math.min(Math.round(i * step), valid.length - 1);
+                sampled.push([valid[idx].lat, valid[idx].lon]);
+            }
+            return sampled;
+        }
         
         // =====================================================
         // GPX PARSING
@@ -489,72 +506,73 @@
             const stats = {
                 rideDate: null,
                 totalDistance: 0,
-                challengeStartTime: null,  // When they LEAVE Costco 1 (Orem)
-                challengeEndTime: null,    // When they ARRIVE at Costco 10 (Bountiful)
+                challengeStartTime: null,
+                challengeEndTime: null,
                 challengeDuration: null,
                 avgSpeed: null
             };
-            
+
             if (points.length === 0) return stats;
-            
+
             // Get ride date from first point with time
             const firstPointWithTime = points.find(p => p.time);
             if (firstPointWithTime) {
                 stats.rideDate = firstPointWithTime.time;
             }
-            
+
             // Calculate total distance
             for (let i = 1; i < points.length; i++) {
-                const dist = haversineDistance(
+                stats.totalDistance += haversineDistance(
                     points[i-1].lat, points[i-1].lon,
-                    points[i].lat, points[i].lon
+                    points[i].lat,   points[i].lon
                 );
-                stats.totalDistance += dist;
             }
-            
-            // Find challenge timing (Orem to Bountiful)
-            // For Orem (start): find the LAST point within radius (when they leave)
-            // For Bountiful (finish): find the FIRST point within radius (when they arrive)
-            
-            const oremResult = verificationResults['Orem'];
-            const bountifulResult = verificationResults['Bountiful'];
-            
-            if (oremResult && oremResult.visited && bountifulResult && bountifulResult.visited) {
-                // Find all points at Orem and get the last one (departure)
-                let lastOremTime = null;
-                let firstBountifulTime = null;
-                
+
+            // Find challenge timing using the FIRST and LAST visited Costcos (in route order).
+            // This works for both full completions (Orem→Bountiful) and partial rides.
+            const visitedCostcos = COSTCOS.filter(c => verificationResults[c.name]?.visited);
+
+            if (visitedCostcos.length >= 2) {
+                const firstCostco = visitedCostcos[0];
+                const lastCostco  = visitedCostcos[visitedCostcos.length - 1];
+
+                // Start time = last moment inside the first Costco's radius (departure)
+                // End time   = first moment inside the last  Costco's radius (arrival)
+                let startTime = null;
+                let endTime   = null;
+
                 for (const point of points) {
                     if (!point.time) continue;
-                    
-                    const distToOrem = haversineDistance(point.lat, point.lon, COSTCOS[0].lat, COSTCOS[0].lon);
-                    const distToBountiful = haversineDistance(point.lat, point.lon, COSTCOS[9].lat, COSTCOS[9].lon);
-                    
-                    if (distToOrem <= RADIUS_MILES) {
-                        lastOremTime = point.time;
+
+                    const dFirst = haversineDistance(point.lat, point.lon, firstCostco.lat, firstCostco.lon);
+                    if (dFirst <= RADIUS_MILES) {
+                        startTime = point.time; // keep updating → becomes departure time
                     }
-                    
-                    if (distToBountiful <= RADIUS_MILES && !firstBountifulTime) {
-                        firstBountifulTime = point.time;
+
+                    const dLast = haversineDistance(point.lat, point.lon, lastCostco.lat, lastCostco.lon);
+                    if (dLast <= RADIUS_MILES && !endTime) {
+                        endTime = point.time; // first arrival
                     }
                 }
-                
-                stats.challengeStartTime = lastOremTime;
-                stats.challengeEndTime = firstBountifulTime;
-                
-                if (lastOremTime && firstBountifulTime) {
-                    const durationMs = firstBountifulTime - lastOremTime;
-                    stats.challengeDuration = durationMs;
-                    
-                    // Calculate average speed (use ~96 miles as route distance from Orem to Bountiful)
-                    const routeDistance = 95.8; // miles from Orem to Bountiful
-                    const hours = durationMs / (1000 * 60 * 60);
-                    if (hours > 0) {
-                        stats.avgSpeed = routeDistance / hours;
+
+                stats.challengeStartTime = startTime;
+                stats.challengeEndTime   = endTime;
+
+                if (startTime && endTime) {
+                    const durationMs = endTime - startTime;
+                    if (durationMs > 0) {
+                        stats.challengeDuration = durationMs;
+
+                        // Distance between first and last visited Costco using mile markers
+                        const segmentDistance = lastCostco.mile - firstCostco.mile;
+                        const hours = durationMs / (1000 * 60 * 60);
+                        if (hours > 0 && segmentDistance > 0) {
+                            stats.avgSpeed = segmentDistance / hours;
+                        }
                     }
                 }
             }
-            
+
             return stats;
         }
         
@@ -819,7 +837,10 @@
                 verificationResults = verifyRide(points);
                 gpxHash = await hashGPX(gpxContent);
                 rideStats = calculateRideStats(points, verificationResults);
-                
+
+                // Embed downsampled GPS track for admin route comparison
+                verificationResults._track = downsampleTrack(points, 500);
+
                 displayResults(verificationResults, rideStats);
                 
             } catch (err) {
@@ -966,7 +987,12 @@
 
                 const speedDemonCheckbox = document.getElementById('speedDemonBonus');
                 const speedDemonLabel = document.getElementById('speedDemonLabel');
-                if (stats.challengeDuration && stats.challengeDuration < 7 * 60 * 60 * 1000) {
+                // Speed Demon requires ALL 10 main Costcos visited (Spanish Fork optional but
+                // doesn't substitute for any of the 10 — all 10 must still be present).
+                const speedDemonEligible = visitedCount === 10 &&
+                    stats.challengeDuration &&
+                    stats.challengeDuration < 7 * 60 * 60 * 1000;
+                if (speedDemonEligible) {
                     speedDemonCheckbox.checked = true;
                     speedDemonCheckbox.disabled = false;
                     speedDemonLabel.classList.add('unlocked');
@@ -975,7 +1001,10 @@
                     speedDemonCheckbox.checked = false;
                     speedDemonCheckbox.disabled = true;
                     speedDemonLabel.classList.remove('unlocked');
-                    speedDemonLabel.querySelector('.bonus-lock').textContent = '🔒 Verified by GPX';
+                    const lockReason = visitedCount < 10
+                        ? '🔒 Requires all 10 Costcos'
+                        : '🔒 Verified by GPX';
+                    speedDemonLabel.querySelector('.bonus-lock').textContent = lockReason;
                 }
                 
                 // Initialize food order dropdowns
@@ -1018,7 +1047,9 @@
             }
 
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+            submitBtn.textContent = '⏳ Submitting (1/2)...';
+            message.className = 'message';
+            message.style.display = 'none';
 
             const gpxHash = document.getElementById('gpxHash').value;
             const riderName = document.getElementById('riderName').value;
@@ -1053,7 +1084,7 @@
             };
 
             try {
-                // Step 1: Submit form data (lightweight, no GPX file)
+                // Step 1: Submit form data (creates the sheet row)
                 await fetch(SUBMIT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -1061,17 +1092,10 @@
                     body: JSON.stringify(formData)
                 });
 
-                message.textContent = '✅ Submission received! Uploading GPX file...';
-                message.className = 'message success show';
-                submitBtn.textContent = 'Uploading GPX...';
-
-                // Step 2: Upload GPX file separately
+                // Step 2: Upload GPX (updates the row via gpxHash match)
+                submitBtn.textContent = '⏳ Uploading GPX (2/2)...';
                 try {
-                    console.log('Starting GPX base64 encoding...');
-                    console.log('gpxContent length:', gpxContent ? gpxContent.length : 'NULL/UNDEFINED');
                     const gpxBase64 = btoa(unescape(encodeURIComponent(gpxContent)));
-                    console.log('GPX base64 encoded, length:', gpxBase64.length);
-
                     const gpxUploadData = {
                         action: 'uploadGpx',
                         gpxFileBase64: gpxBase64,
@@ -1080,31 +1104,26 @@
                         riderName: riderName,
                         rideDate: rideDate
                     };
-
-                    console.log('Sending GPX upload request...');
-                    console.log('Total payload size (approx):', JSON.stringify(gpxUploadData).length, 'chars');
-
                     await fetch(SUBMIT_URL, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify(gpxUploadData)
                     });
-
-                    console.log('GPX upload fetch completed');
-                    message.textContent = '✅ Submission received and GPX uploaded! We\'ll review it and add you to the results page soon.';
+                    message.textContent = '✅ Ride submitted and GPX uploaded! We\'ll review it and add you to the results page soon.';
                 } catch (gpxErr) {
                     console.error('GPX upload error:', gpxErr);
-                    console.error('Error details:', gpxErr.message, gpxErr.stack);
-                    message.textContent = '✅ Submission received! GPX upload may still be processing. We\'ll review it soon.';
+                    message.textContent = '✅ Ride submitted! GPX upload may still be processing — we\'ll review it soon.';
                 }
 
                 message.className = 'message success show';
-                submitBtn.textContent = '✓ Submitted!';
+                message.style.display = '';
+                submitBtn.textContent = '✅ Submitted!';
 
             } catch (err) {
                 message.textContent = '❌ Error submitting. Please try again or email ggg@lmarx.com';
                 message.className = 'message error show';
+                message.style.display = '';
                 submitBtn.disabled = false;
                 submitBtn.textContent = '📤 Submit for Review';
             }

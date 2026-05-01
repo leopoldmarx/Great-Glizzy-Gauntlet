@@ -16,6 +16,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         /* Admin page specific overrides */
@@ -45,6 +47,113 @@
         .spinner {
             border: 4px solid rgba(255,255,255,0.3);
             border-top: 4px solid white;
+        }
+
+        /* Route analysis map section — dark panel so text stays white on the light .card */
+        .route-analysis {
+            margin-top: 1.5rem;
+            padding: 1.25rem;
+            border-radius: 8px;
+            background: #1e2d45;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .route-analysis h4 {
+            color: #e0e7ff;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .segment-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .segment-nav .seg-btn {
+            background: #2d4268;
+            color: #e0e7ff;
+            border: 1px solid #4a6090;
+            padding: 0.45rem 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: background 0.2s;
+            display: inline-block;
+        }
+
+        .segment-nav .seg-btn:hover:not(:disabled) {
+            background: #3a5580;
+        }
+
+        .segment-nav .seg-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .segment-label {
+            flex: 1;
+            text-align: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .segment-counter {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .similarity-display {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            min-height: 1.5rem;
+        }
+
+        .sim-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .sim-excellent { background: #16a34a; color: white; }
+        .sim-good      { background: #ca8a04; color: white; }
+        .sim-fair      { background: #ea580c; color: white; }
+        .sim-poor      { background: #dc2626; color: white; }
+
+        .sim-detail {
+            color: rgba(255,255,255,0.65);
+        }
+
+        .map-container {
+            height: 360px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #1a2535;
+            padding: 0; /* override styles.css .map-container padding */
+            box-shadow: none;
+            margin-bottom: 0;
+        }
+
+        .map-no-track {
+            height: 360px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+            font-style: italic;
         }
     </style>
     
@@ -120,6 +229,40 @@
             'Orem', 'Lehi', 'Saratoga Springs', 'Riverton', 'South Jordan',
             'Sandy', 'Murray', 'West Valley', 'Salt Lake City', 'Bountiful'
         ];
+
+        // Costco lat/lon for route segment mapping
+        const COSTCO_LOCATIONS = [
+            { name: 'Orem',             lat: 40.28056298936492,  lon: -111.67989096390991 },
+            { name: 'Lehi',             lat: 40.38930244722512,  lon: -111.82281926596582 },
+            { name: 'Saratoga Springs', lat: 40.3813625264605,   lon: -111.91846628756342 },
+            { name: 'Riverton',         lat: 40.51326031602138,  lon: -112.00193679057458 },
+            { name: 'South Jordan',     lat: 40.56004657032966,  lon: -111.97541047830654 },
+            { name: 'Sandy',            lat: 40.549869250400754, lon: -111.8943388234441  },
+            { name: 'Murray',           lat: 40.65774477283043,  lon: -111.88997616091126 },
+            { name: 'West Valley',      lat: 40.690548404589144, lon: -111.95432454852087 },
+            { name: 'Salt Lake City',   lat: 40.73088295779431,  lon: -111.90172671952065 },
+            { name: 'Bountiful',        lat: 40.89003698423399,  lon: -111.894651184651   }
+        ];
+
+        // Costco-to-Costco segments (9 legs)
+        const SEGMENTS = [
+            { label: 'Orem → Lehi',                 fromIdx: 0, toIdx: 1 },
+            { label: 'Lehi → Saratoga Springs',      fromIdx: 1, toIdx: 2 },
+            { label: 'Saratoga Springs → Riverton',  fromIdx: 2, toIdx: 3 },
+            { label: 'Riverton → South Jordan',      fromIdx: 3, toIdx: 4 },
+            { label: 'South Jordan → Sandy',         fromIdx: 4, toIdx: 5 },
+            { label: 'Sandy → Murray',               fromIdx: 5, toIdx: 6 },
+            { label: 'Murray → West Valley',         fromIdx: 6, toIdx: 7 },
+            { label: 'West Valley → Salt Lake City', fromIdx: 7, toIdx: 8 },
+            { label: 'Salt Lake City → Bountiful',   fromIdx: 8, toIdx: 9 },
+        ];
+
+        // Route analysis state
+        let officialRoute = [];         // [{lat, lon}] parsed from official GPX
+        let officialCostcoIdx = [];     // index into officialRoute nearest each Costco
+        let mapInstances = {};          // { subId: L.Map }
+        let segmentState = {};          // { subId: { index, riderTrack, verification } }
+        let lastFilteredSubs = [];
         
         // =====================================================
         // AUTHENTICATION
@@ -174,7 +317,8 @@
         function showAdminPanel() {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('adminPanel').classList.add('show');
-            loadSubmissions();
+            // Load official route first, then submissions (route is local/fast)
+            loadOfficialRoute().then(() => loadSubmissions());
         }
         
         // =====================================================
@@ -269,13 +413,17 @@
         }
         
         function renderSubmissions() {
+            destroyAllMaps();
+
             const container = document.getElementById('submissionsContainer');
-            
+
             let filtered = submissions;
             if (currentTab !== 'all') {
                 filtered = submissions.filter(s => s.status === currentTab);
             }
-            
+
+            lastFilteredSubs = filtered;
+
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="card">
@@ -288,8 +436,9 @@
                 `;
                 return;
             }
-            
+
             container.innerHTML = filtered.map(sub => renderSubmissionCard(sub)).join('');
+            initMaps(filtered);
         }
         
         function renderSubmissionCard(sub) {
@@ -420,6 +569,20 @@
                             </button>
                         </div>
                     ` : ''}
+
+                    <div class="route-analysis">
+                        <h4>🗺️ Route Analysis — Costco-to-Costco Segments</h4>
+                        <div class="segment-nav">
+                            <button class="seg-btn seg-prev" onclick="changeSegment(${sub.id}, -1)" disabled>← Prev</button>
+                            <div class="segment-label" id="seg-label-${sub.id}">Leg 1: Orem → Lehi</div>
+                            <span class="segment-counter" id="seg-counter-${sub.id}">1 / ${SEGMENTS.length}</span>
+                            <button class="seg-btn seg-next" onclick="changeSegment(${sub.id}, 1)">Next →</button>
+                        </div>
+                        <div class="similarity-display" id="seg-score-${sub.id}">
+                            <span style="color: rgba(255,255,255,0.4); font-style: italic;">Initializing map...</span>
+                        </div>
+                        <div class="map-container" id="map-${sub.id}"></div>
+                    </div>
                 </div>
             `;
         }
@@ -499,6 +662,262 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // =====================================================
+        // ROUTE ANALYSIS — OFFICIAL GPX LOADING
+        // =====================================================
+
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 3959;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        async function loadOfficialRoute() {
+            try {
+                const resp = await fetch('/Great_Glizzy_Gauntlet.gpx');
+                const text = await resp.text();
+                const xml = new DOMParser().parseFromString(text, 'text/xml');
+
+                const pts = [];
+                xml.querySelectorAll('trkpt').forEach(pt => {
+                    pts.push({ lat: parseFloat(pt.getAttribute('lat')), lon: parseFloat(pt.getAttribute('lon')) });
+                });
+                officialRoute = pts;
+
+                // Pre-compute which official route index is nearest each Costco
+                officialCostcoIdx = COSTCO_LOCATIONS.map(c => findNearestOfficialIdx(c.lat, c.lon));
+                console.log(`Official route loaded: ${officialRoute.length} points`);
+            } catch (e) {
+                console.error('Failed to load official route GPX:', e);
+            }
+        }
+
+        function findNearestOfficialIdx(lat, lon) {
+            let minD = Infinity, idx = 0;
+            for (let i = 0; i < officialRoute.length; i++) {
+                const d = haversineDistance(officialRoute[i].lat, officialRoute[i].lon, lat, lon);
+                if (d < minD) { minD = d; idx = i; }
+            }
+            return idx;
+        }
+
+        function getOfficialSegment(segIdx) {
+            if (officialRoute.length === 0 || officialCostcoIdx.length < 10) return [];
+            const s = SEGMENTS[segIdx];
+            const a = officialCostcoIdx[s.fromIdx];
+            const b = officialCostcoIdx[s.toIdx];
+            return officialRoute.slice(Math.min(a, b), Math.max(a, b) + 1);
+        }
+
+        // Ordered forward-search: each Costco's nearest track index must be >= the previous one.
+        // Prevents the "global nearest" bug where unvisited Costcos steal indices from later ones.
+        function getRiderCostcoIndices(track) {
+            let searchFrom = 0;
+            return COSTCO_LOCATIONS.map(costco => {
+                let minD = Infinity, bestI = searchFrom;
+                for (let i = searchFrom; i < track.length; i++) {
+                    const d = haversineDistance(track[i][0], track[i][1], costco.lat, costco.lon);
+                    if (d < minD) { minD = d; bestI = i; }
+                }
+                searchFrom = Math.min(bestI + 1, track.length - 1);
+                return bestI;
+            });
+        }
+
+        function getRiderSegment(track, segIdx, riderCostcoIndices) {
+            if (!riderCostcoIndices) return [];
+            const s  = SEGMENTS[segIdx];
+            const a  = riderCostcoIndices[s.fromIdx];
+            const b  = riderCostcoIndices[s.toIdx];
+            if (a === undefined || b === undefined || a >= b) return [];
+            return track.slice(a, b + 1);
+        }
+
+        // Bidirectional (symmetric) distance:
+        //   official→rider  — catches segments the rider skipped entirely
+        //   rider→official  — catches segments where the rider deviated from the route
+        // Uses fast squared-degree approximation (cosLat correction) to avoid per-call trig.
+        function calcSimilarityScore(riderPts, officialPts) {
+            if (!riderPts.length || !officialPts.length) return null;
+            const cosLat = Math.cos(40.5 * Math.PI / 180); // Utah Valley centre
+
+            // Official → Rider
+            let sumO2R = 0;
+            for (const op of officialPts) {
+                let minSq = Infinity;
+                for (const rp of riderPts) {
+                    const dlat = op.lat  - rp[0];
+                    const dlon = (op.lon - rp[1]) * cosLat;
+                    const sq   = dlat * dlat + dlon * dlon;
+                    if (sq < minSq) minSq = sq;
+                }
+                sumO2R += Math.sqrt(minSq);
+            }
+
+            // Rider → Official
+            let sumR2O = 0;
+            for (const rp of riderPts) {
+                let minSq = Infinity;
+                for (const op of officialPts) {
+                    const dlat = rp[0]  - op.lat;
+                    const dlon = (rp[1] - op.lon) * cosLat;
+                    const sq   = dlat * dlat + dlon * dlon;
+                    if (sq < minSq) minSq = sq;
+                }
+                sumR2O += Math.sqrt(minSq);
+            }
+
+            // 1° lat ≈ 364,320 ft; average both directions
+            return ((sumO2R / officialPts.length) + (sumR2O / riderPts.length)) / 2 * 364320;
+        }
+
+        // =====================================================
+        // MAP LIFECYCLE
+        // =====================================================
+
+        function destroyAllMaps() {
+            Object.values(mapInstances).forEach(m => { try { m.remove(); } catch(e) {} });
+            mapInstances = {};
+            segmentState = {};
+        }
+
+        function initMaps(subs) {
+            // requestAnimationFrame ensures DOM elements are painted before Leaflet measures them
+            requestAnimationFrame(() => {
+                subs.forEach(sub => initMapForSub(sub));
+            });
+        }
+
+        function initMapForSub(sub) {
+            const el = document.getElementById(`map-${sub.id}`);
+            if (!el) return;
+
+            let riderTrack = null;
+            let riderCostcoIndices = null;
+            let verification = {};
+            try {
+                verification = JSON.parse(sub.verificationData || '{}');
+                riderTrack = Array.isArray(verification._track) ? verification._track : null;
+            } catch(e) {}
+
+            if (officialRoute.length === 0) {
+                el.innerHTML = '<p style="color:rgba(255,255,255,0.4);padding:1rem;font-style:italic;">Official route not loaded.</p>';
+                return;
+            }
+
+            // Pre-compute which track index corresponds to each Costco (ordered forward search).
+            // Done once per submission so segment switching is instant.
+            if (riderTrack && riderTrack.length > 0) {
+                riderCostcoIndices = getRiderCostcoIndices(riderTrack);
+            }
+
+            const map = L.map(el, { attributionControl: false });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            L.control.attribution({ prefix: false }).addTo(map);
+
+            mapInstances[sub.id] = map;
+            segmentState[sub.id] = { index: 0, riderTrack, riderCostcoIndices, verification };
+
+            updateMapSegment(sub.id);
+
+            // Leaflet needs a size hint after the map container is fully painted
+            setTimeout(() => map.invalidateSize(), 250);
+        }
+
+        function updateMapSegment(subId) {
+            const map = mapInstances[subId];
+            const state = segmentState[subId];
+            if (!map || !state) return;
+
+            const seg = SEGMENTS[state.index];
+
+            // Update nav UI
+            const labelEl   = document.getElementById(`seg-label-${subId}`);
+            const counterEl = document.getElementById(`seg-counter-${subId}`);
+            const card      = document.getElementById(`submission-${subId}`);
+            if (labelEl)   labelEl.textContent = `Leg ${state.index + 1}: ${seg.label}`;
+            if (counterEl) counterEl.textContent = `${state.index + 1} / ${SEGMENTS.length}`;
+            if (card) {
+                const prev = card.querySelector('.seg-prev');
+                const next = card.querySelector('.seg-next');
+                if (prev) prev.disabled = state.index === 0;
+                if (next) next.disabled = state.index === SEGMENTS.length - 1;
+            }
+
+            // Clear non-tile layers
+            map.eachLayer(l => { if (!(l instanceof L.TileLayer)) map.removeLayer(l); });
+
+            const officialPts = getOfficialSegment(state.index);
+
+            // Draw official route (blue)
+            if (officialPts.length > 0) {
+                L.polyline(officialPts.map(p => [p.lat, p.lon]), {
+                    color: '#3b82f6', weight: 4, opacity: 0.85
+                }).bindTooltip('Official route').addTo(map);
+            }
+
+            // Draw rider track (red dashed) and compute similarity
+            let similarity = null;
+            if (state.riderTrack && state.riderTrack.length > 0) {
+                const riderPts = getRiderSegment(state.riderTrack, state.index, state.riderCostcoIndices);
+                if (riderPts.length > 1) {
+                    L.polyline(riderPts, {
+                        color: '#ef4444', weight: 3, opacity: 0.9, dashArray: '6,4'
+                    }).bindTooltip('Rider track').addTo(map);
+                    similarity = calcSimilarityScore(riderPts, officialPts);
+                }
+            }
+
+            // Costco markers
+            const fromC = COSTCO_LOCATIONS[seg.fromIdx];
+            const toC   = COSTCO_LOCATIONS[seg.toIdx];
+            L.circleMarker([fromC.lat, fromC.lon], { radius: 9, fillColor: '#16a34a', color: '#fff', weight: 2, fillOpacity: 1 })
+             .bindTooltip(`Start: ${fromC.name}`, { permanent: false }).addTo(map);
+            L.circleMarker([toC.lat, toC.lon],   { radius: 9, fillColor: '#dc2626', color: '#fff', weight: 2, fillOpacity: 1 })
+             .bindTooltip(`End: ${toC.name}`, { permanent: false }).addTo(map);
+
+            // Fit to official segment bounds
+            if (officialPts.length > 0) {
+                map.fitBounds(L.latLngBounds(officialPts.map(p => [p.lat, p.lon])), { padding: [25, 25] });
+            }
+
+            // Similarity score display
+            const scoreEl = document.getElementById(`seg-score-${subId}`);
+            if (!scoreEl) return;
+            if (!state.riderTrack) {
+                scoreEl.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-style:italic;">No GPS track available — submitted before track recording was added.</span>';
+            } else if (similarity !== null) {
+                const ft = Math.round(similarity);
+                let cls, label;
+                if      (ft <  200) { cls = 'excellent'; label = '✅ On Route';              }
+                else if (ft <  500) { cls = 'good';      label = '🟡 Minor Deviation';       }
+                else if (ft < 1200) { cls = 'fair';      label = '🟠 Moderate Deviation';    }
+                else                { cls = 'poor';      label = '🔴 Significant Deviation'; }
+                scoreEl.innerHTML = `
+                    <span class="sim-badge sim-${cls}">${label}</span>
+                    <span class="sim-detail">Avg deviation: ${ft} ft from official route</span>
+                    <span class="sim-detail" style="margin-left:auto;">
+                        🔵 Official &nbsp; <span style="color:#ef4444;">- - -</span> Rider
+                    </span>
+                `;
+            } else {
+                scoreEl.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-style:italic;">Rider did not visit this segment.</span>';
+            }
+        }
+
+        function changeSegment(subId, dir) {
+            const state = segmentState[subId];
+            if (!state) return;
+            state.index = Math.max(0, Math.min(SEGMENTS.length - 1, state.index + dir));
+            updateMapSegment(subId);
         }
     </script>
 </body>

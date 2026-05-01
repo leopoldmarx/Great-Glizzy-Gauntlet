@@ -1,10 +1,10 @@
 FROM nginx:alpine
 
 # Copy the main HTML pages
+# admin.html and admin-config.js are intentionally excluded — open locally, not served publicly
 COPY index.html /usr/share/nginx/html/
 COPY verify.html /usr/share/nginx/html/
 COPY results.html /usr/share/nginx/html/
-COPY admin.html /usr/share/nginx/html/
 
 # Copy stylesheets
 COPY styles.css /usr/share/nginx/html/

@@ -454,16 +454,22 @@
         // =====================================================
         // TRACK DOWNSAMPLING (for admin route comparison)
         // =====================================================
+        // Each point is stored as [lat, lon, timestampMs].
+        // timestampMs is null when the GPX has no time data.
+        // The timestamp is critical for moving-speed calculation in the admin panel —
+        // it lets us filter out stationary intervals (red lights, breaks) so speed
+        // reflects actual pedalling pace, not elapsed time.
         function downsampleTrack(points, maxPoints) {
             const valid = points.filter(p => !isNaN(p.lat) && !isNaN(p.lon));
+            const toEntry = p => [p.lat, p.lon, p.time instanceof Date && !isNaN(p.time) ? p.time.getTime() : null];
             if (valid.length <= maxPoints) {
-                return valid.map(p => [p.lat, p.lon]);
+                return valid.map(toEntry);
             }
             const step = valid.length / maxPoints;
             const sampled = [];
             for (let i = 0; i < maxPoints; i++) {
                 const idx = Math.min(Math.round(i * step), valid.length - 1);
-                sampled.push([valid[idx].lat, valid[idx].lon]);
+                sampled.push(toEntry(valid[idx]));
             }
             return sampled;
         }

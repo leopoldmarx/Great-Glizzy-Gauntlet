@@ -144,6 +144,73 @@
             margin-bottom: 0;
         }
 
+        /* ── Ride Metrics ─────────────────────────────── */
+        .ride-metrics {
+            margin-top: 1.5rem;
+            padding: 1.25rem;
+            border-radius: 8px;
+            background: #141f2e;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .ride-metrics h4 { color: #e0e7ff; margin-bottom: 0.75rem; font-size: 1rem; }
+
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            margin-bottom: 0.5rem;
+        }
+        .metrics-table th {
+            color: rgba(255,255,255,0.38);
+            font-size: 0.71rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 0.3rem 0.6rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: left;
+        }
+        .metrics-table td { padding: 0.35rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .metrics-table tr:last-child td { border-bottom: none; }
+        .metrics-table .section-head td {
+            padding-top: 0.75rem;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: rgba(255,255,255,0.35);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* Speed colour bands */
+        .spd-normal  { color: #4ade80; }   /* <17 mph  — normal  */
+        .spd-fast    { color: #facc15; }   /* 17–21    — fast    */
+        .spd-flagged { color: #fb923c; }   /* 21–25    — flag    */
+        .spd-sus     { color: #f87171; }   /* >25      — suspicious */
+
+        /* Dwell colour bands */
+        .dwell-fine  { color: rgba(255,255,255,0.6); }
+        .dwell-quick { color: #facc15; }
+        .dwell-sus   { color: #f87171; }
+
+        .metrics-pills {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }
+        .m-pill {
+            background: rgba(255,255,255,0.06);
+            border-radius: 5px;
+            padding: 0.28rem 0.7rem;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.55);
+        }
+        .m-pill strong { color: white; }
+        .m-pill-warn {
+            background: rgba(251,146,60,0.12);
+            border: 1px solid rgba(251,146,60,0.3);
+            color: #fb923c;
+        }
+
         .map-no-track {
             height: 360px;
             border-radius: 8px;
@@ -256,6 +323,9 @@
             { label: 'West Valley → Salt Lake City', fromIdx: 7, toIdx: 8 },
             { label: 'Salt Lake City → Bountiful',   fromIdx: 8, toIdx: 9 },
         ];
+
+        // Mile markers matching COSTCO_LOCATIONS order
+        const COSTCO_MILES = [3.1, 20.8, 26.3, 42.2, 46.6, 51.7, 64.3, 70.6, 78.8, 99.3];
 
         // Route analysis state
         let officialRoute = [];         // [{lat, lon}] parsed from official GPX
@@ -570,6 +640,8 @@
                         </div>
                     ` : ''}
 
+                    ${renderMetrics(sub)}
+
                     <div class="route-analysis">
                         <h4>🗺️ Route Analysis — Costco-to-Costco Segments</h4>
                         <div class="segment-nav">
@@ -775,6 +847,203 @@
 
             // 1° lat ≈ 364,320 ft; average both directions
             return ((sumO2R / officialPts.length) + (sumR2O / riderPts.length)) / 2 * 364320;
+        }
+
+        // =====================================================
+        // RIDE METRICS
+        // =====================================================
+
+        // Calculate moving speed over a slice of the track.
+        // Filters out intervals where the rider was stationary (< MIN_MPH).
+        // Returns mph, or null if timestamps are missing / data is thin.
+        function calcSegmentMovingSpeed(track, fromIdx, toIdx, distanceMiles) {
+            if (!track || fromIdx >= toIdx) return null;
+
+            const MIN_MPH    = 2;       // below this = stopped / coasting to a stop
+            const MAX_GAP_MS = 120000;  // ignore gaps > 2 min (GPS paused / tunnel)
+
+            const seg = track.slice(fromIdx, toIdx + 1);
+            if (seg.length < 2 || seg[0].length < 3) return null; // no timestamps
+
+            let movingMs = 0;
+            for (let i = 1; i < seg.length; i++) {
+                const t0 = seg[i - 1][2], t1 = seg[i][2];
+                if (t0 === null || t1 === null) return null;  // any null → no data
+                const dt = t1 - t0;
+                if (dt <= 0 || dt > MAX_GAP_MS) continue;
+
+                const d     = haversineDistance(seg[i-1][0], seg[i-1][1], seg[i][0], seg[i][1]);
+                const speed = d / (dt / 3600000);
+                if (speed >= MIN_MPH) movingMs += dt;
+            }
+
+            if (movingMs < 30000) return null;  // < 30 s of moving data = unreliable
+            return distanceMiles / (movingMs / 3600000);
+        }
+
+        function speedClass(mph) {
+            if (mph <  17) return 'spd-normal';
+            if (mph <  21) return 'spd-fast';
+            if (mph <  25) return 'spd-flagged';
+            return 'spd-sus';
+        }
+
+        function renderMetrics(sub) {
+            let verification = {}, track = null;
+            try {
+                verification = JSON.parse(sub.verificationData || '{}');
+                track = Array.isArray(verification._track) ? verification._track : null;
+            } catch(e) {}
+
+            const trackHasTimes = track && track.length > 0 &&
+                                  track[0].length >= 3 && track[0][2] !== null;
+            const vdHasTimes    = COSTCO_NAMES.some(n => verification[n]?.visitTime);
+
+            if (!vdHasTimes && !trackHasTimes) {
+                return `<div class="ride-metrics">
+                    <h4>📊 Ride Metrics</h4>
+                    <p style="color:rgba(255,255,255,0.3);font-style:italic;font-size:0.83rem;">
+                        No timestamp data in this GPX — cannot calculate per-segment metrics.
+                    </p>
+                </div>`;
+            }
+
+            // Pre-compute rider Costco indices for segment slicing
+            const rci = (track && track.length > 0) ? getRiderCostcoIndices(track) : null;
+
+            let rows = '';
+            let maxSpeed = 0, flagCount = 0;
+            let totalDwellMs = 0, dwellCount = 0;
+
+            for (let i = 0; i < COSTCO_NAMES.length; i++) {
+                const name = COSTCO_NAMES[i];
+                const vd   = verification[name];
+                if (!vd || !vd.visited) continue;
+
+                // ── Stop row ──────────────────────────────────────
+                const arrival   = vd.visitTime     ? new Date(vd.visitTime)     : null;
+                const departure = vd.departureTime ? new Date(vd.departureTime) : null;
+                let dwellMin = null;
+                if (arrival && departure && !isNaN(arrival) && !isNaN(departure) && departure > arrival) {
+                    dwellMin = (departure - arrival) / 60000;
+                    totalDwellMs += departure - arrival;
+                    dwellCount++;
+                }
+
+                const arrStr  = arrival   && !isNaN(arrival)
+                    ? arrival.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
+
+                let dwellHtml = '<span style="color:rgba(255,255,255,0.25)">—</span>';
+                if (dwellMin !== null) {
+                    const m = Math.round(dwellMin);
+                    const cls = m < 5 ? 'dwell-sus' : m < 12 ? 'dwell-quick' : 'dwell-fine';
+                    const flag = m < 5 ? ' ⚠️' : '';
+                    dwellHtml = `<span class="${cls}">${m} min${flag}</span>`;
+                }
+
+                rows += `<tr>
+                    <td style="color:rgba(255,255,255,0.85);font-weight:600;">📍 ${name}</td>
+                    <td style="color:rgba(255,255,255,0.45)">${arrStr}</td>
+                    <td>dwell: ${dwellHtml}</td>
+                    <td></td><td></td>
+                </tr>`;
+
+                // ── Segment row (this stop → next visited stop) ───
+                let nextIdx = -1;
+                for (let j = i + 1; j < COSTCO_NAMES.length; j++) {
+                    if (verification[COSTCO_NAMES[j]]?.visited) { nextIdx = j; break; }
+                }
+                if (nextIdx === -1) continue;
+
+                const nextName = COSTCO_NAMES[nextIdx];
+                const nvd      = verification[nextName];
+                const segMiles = COSTCO_MILES[nextIdx] - COSTCO_MILES[i];
+
+                // Moving speed from track timestamps (preferred)
+                let movingSpeedHtml = '<span style="color:rgba(255,255,255,0.25)">—</span>';
+                let movingSpeed = null;
+                if (track && rci) {
+                    const a = rci[i], b = rci[nextIdx];
+                    if (a !== undefined && b !== undefined && b > a) {
+                        movingSpeed = calcSegmentMovingSpeed(track, a, b, segMiles);
+                    }
+                }
+
+                if (movingSpeed !== null) {
+                    const cls = speedClass(movingSpeed);
+                    if (movingSpeed > 21) flagCount++;
+                    if (movingSpeed > maxSpeed) maxSpeed = movingSpeed;
+                    movingSpeedHtml = `<span class="${cls}">${movingSpeed.toFixed(1)} mph</span>`;
+                } else if (departure && nvd?.visitTime) {
+                    // Fallback: elapsed time (labelled so it's clear)
+                    const nextArr = new Date(nvd.visitTime);
+                    const elapsedMs = nextArr - departure;
+                    if (elapsedMs > 0 && elapsedMs < 14 * 3600000) {
+                        const elSpeed = segMiles / (elapsedMs / 3600000);
+                        const cls = speedClass(elSpeed);
+                        if (elSpeed > 21) flagCount++;
+                        if (elSpeed > maxSpeed) maxSpeed = elSpeed;
+                        movingSpeedHtml = `<span class="${cls}">${elSpeed.toFixed(1)} mph</span>
+                            <span style="font-size:0.7em;color:rgba(255,255,255,0.3)"> elapsed</span>`;
+                    }
+                }
+
+                // Elapsed segment time (for reference, not used as speed denominator)
+                let elapsedStr = '—';
+                if (departure && nvd?.visitTime) {
+                    const ms = new Date(nvd.visitTime) - departure;
+                    if (ms > 0) {
+                        const h = Math.floor(ms / 3600000);
+                        const m = Math.floor((ms % 3600000) / 60000);
+                        elapsedStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                    }
+                }
+
+                // Skipped stops between i and nextIdx?
+                const skipped = nextIdx - i - 1;
+                const skipNote = skipped > 0
+                    ? `<span style="color:rgba(255,255,255,0.3);font-size:0.78em"> (${skipped} skip)</span>`
+                    : '';
+
+                rows += `<tr>
+                    <td style="color:rgba(255,255,255,0.45);padding-left:1.5rem;">
+                        ↓ ${nextName}${skipNote}
+                    </td>
+                    <td style="color:rgba(255,255,255,0.35)">${segMiles.toFixed(1)} mi</td>
+                    <td style="color:rgba(255,255,255,0.4)">${elapsedStr}</td>
+                    <td>${movingSpeedHtml}</td>
+                    <td></td>
+                </tr>`;
+            }
+
+            // ── Summary pills ─────────────────────────────────
+            const pills = [];
+            if (maxSpeed > 0)
+                pills.push(`<div class="m-pill">Peak moving speed: <strong class="${speedClass(maxSpeed)}">${maxSpeed.toFixed(1)} mph</strong></div>`);
+            if (dwellCount > 0)
+                pills.push(`<div class="m-pill">Total stop time: <strong>${Math.round(totalDwellMs / 60000)} min</strong></div>`);
+            if (!trackHasTimes && vdHasTimes)
+                pills.push(`<div class="m-pill" style="color:rgba(255,255,255,0.3)">⚠ Older submission — speeds are elapsed-time estimates</div>`);
+            if (flagCount > 0)
+                pills.push(`<div class="m-pill m-pill-warn">⚡ ${flagCount} segment${flagCount > 1 ? 's' : ''} above 21 mph — review recommended</div>`);
+
+            return `<div class="ride-metrics">
+                <h4>📊 Ride Metrics</h4>
+                <table class="metrics-table">
+                    <thead><tr>
+                        <th>Stop / Segment</th>
+                        <th>Dist</th>
+                        <th>Elapsed</th>
+                        <th>Moving Speed</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="metrics-pills">${pills.join('')}</div>
+                <p style="font-size:0.7rem;color:rgba(255,255,255,0.2);margin-top:0.6rem;">
+                    Moving speed filters intervals ≤2 mph from track. Dwell ⚠️ = under 5 min at stop.
+                </p>
+            </div>`;
         }
 
         // =====================================================

@@ -381,8 +381,15 @@
             document.getElementById('spanishForkCount').textContent = 
                 data.filter(r => r.bonuses && r.bonuses.includes('spanish_fork')).length || '0';
             
-            // Find fastest time (prefer elapsedTime, fall back to movingTime)
+            // Find fastest time — only riders who visited all 10 Costcos AND ate at all 10 (no skips)
             const times = data
+                .filter(r => {
+                    if (parseInt(r.costcosVisited) !== 10) return false;
+                    try {
+                        const orders = JSON.parse(r.foodOrders || '{}');
+                        return Object.values(orders).filter(v => v === 'skipped').length === 0;
+                    } catch (e) { return false; }
+                })
                 .map(r => {
                     // Try elapsedTime first (milliseconds format)
                     let ms = parseInt(r.elapsedTime);

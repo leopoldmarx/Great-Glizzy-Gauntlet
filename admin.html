@@ -267,12 +267,57 @@
                 </button>
             </div>
             
+            <!-- Publish Results Panel -->
+            <div id="publishPanel" style="
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 10px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 1.25rem;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+            ">
+                <div style="flex:1;min-width:200px;">
+                    <div style="font-weight:600;color:rgba(255,255,255,0.9);font-size:0.95rem;">📢 Publish Results</div>
+                    <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);margin-top:0.2rem;" id="publishStatus">
+                        Download <code>results-YEAR.json</code> and place it in the server root to reveal the leaderboard.
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+                    <select id="publishYear" style="
+                        background:rgba(255,255,255,0.08);
+                        border:1px solid rgba(255,255,255,0.2);
+                        border-radius:6px;
+                        color:rgba(255,255,255,0.85);
+                        padding:0.35rem 0.6rem;
+                        font-size:0.85rem;
+                        font-family:inherit;
+                    ">
+                        <option value="2026">2026</option>
+                    </select>
+                    <button onclick="publishResults()" style="
+                        background: #22c55e;
+                        color: white;
+                        border: none;
+                        border-radius: 7px;
+                        padding: 0.4rem 1rem;
+                        font-weight: 700;
+                        font-size: 0.85rem;
+                        cursor: pointer;
+                        font-family: inherit;
+                        white-space: nowrap;
+                    ">⬇️ Download JSON</button>
+                </div>
+            </div>
+
             <!-- Loading -->
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p>Loading submissions...</p>
             </div>
-            
+
             <!-- Submissions Container -->
             <div id="submissionsContainer"></div>
         </div>
@@ -512,35 +557,55 @@
             initMaps(filtered);
         }
         
+        // Submission deadline: Mon May 4, 2026 11:59 PM MDT (= May 5, 2026 05:59 UTC)
+        const SUBMISSION_DEADLINE = new Date('2026-05-05T05:59:00Z');
+
         function renderSubmissionCard(sub) {
             const statusClass = `status-${sub.status}`;
             const statusText = sub.status.charAt(0).toUpperCase() + sub.status.slice(1);
-            
-            // Check for duplicate hash
-            const duplicates = submissions.filter(s => 
-                s.gpxHash === sub.gpxHash && 
-                s.id !== sub.id && 
+
+            // Check for duplicate hash (only flags when another approved ride shares this hash)
+            const duplicates = submissions.filter(s =>
+                s.gpxHash === sub.gpxHash &&
+                s.id !== sub.id &&
                 s.status === 'approved'
             );
             const hasDuplicate = duplicates.length > 0;
-            
-            // Parse verification data
+
+            // Check submission deadline
+            const submittedAt = new Date(sub.submittedAt);
+            const isLate = !isNaN(submittedAt) && submittedAt > SUBMISSION_DEADLINE;
+
+            // Parse verification data; also check for low dwell times
             let verificationHtml = '';
+            let lowDwellCostcos = [];
             try {
                 const verification = JSON.parse(sub.verificationData || '{}');
                 verificationHtml = COSTCO_NAMES.map(name => {
                     const visited = verification[name]?.visited;
                     return `<span class="costco-mini ${visited ? 'visited' : 'missed'}">${visited ? '✓' : '✗'} ${name}</span>`;
                 }).join('');
-                
+
                 if (verification['Spanish Fork']) {
                     const sfVisited = verification['Spanish Fork'].visited;
                     verificationHtml += `<span class="costco-mini ${sfVisited ? 'visited' : 'missed'}">${sfVisited ? '⭐' : '✗'} Spanish Fork</span>`;
                 }
+
+                // Detect low dwell times from verificationData timestamps
+                COSTCO_NAMES.forEach(name => {
+                    const vd = verification[name];
+                    if (!vd?.visited || !vd.visitTime || !vd.departureTime) return;
+                    const arrival = new Date(vd.visitTime);
+                    const departure = new Date(vd.departureTime);
+                    if (!isNaN(arrival) && !isNaN(departure) && departure > arrival) {
+                        const dwellMin = (departure - arrival) / 60000;
+                        if (dwellMin < 5) lowDwellCostcos.push({ name, min: Math.round(dwellMin) });
+                    }
+                });
             } catch (e) {
                 verificationHtml = '<p>Verification data not available</p>';
             }
-            
+
             // Bonuses
             const bonusLabels = {
                 'hotdog_purist': '🌭 Hot Dog Purist',
@@ -551,7 +616,10 @@
                 'spanish_fork': '🏔️ Spanish Fork'
             };
             const bonuses = (sub.bonuses || []).map(b => bonusLabels[b] || b).join(', ') || 'None';
-            
+
+            // Load saved admin note for this submission
+            const savedNote = localStorage.getItem(`ggg_admin_note_${sub.id}`) || '';
+
             return `
                 <div class="card" id="submission-${sub.id}">
                     ${hasDuplicate ? `
@@ -559,17 +627,28 @@
                             <strong>⚠️ Possible Duplicate:</strong> This GPX hash matches an already approved submission.
                         </div>
                     ` : ''}
-                    
+                    ${isLate ? `
+                        <div class="hash-warning" style="border-left-color: #f87171; background: #fee2e2;">
+                            <strong style="color: #991b1b;">⏰ Late Submission:</strong> <span style="color: #7f1d1d;">Submitted after the Mon May 4 11:59 PM deadline (${submittedAt.toLocaleString()}).</span>
+                        </div>
+                    ` : ''}
+                    ${lowDwellCostcos.length > 0 ? `
+                        <div class="hash-warning" style="border-left-color: #fb923c; background: #fff7ed;">
+                            <strong style="color: #9a3412;">⚠️ Low Dwell Time:</strong> <span style="color: #7c2d12;">${lowDwellCostcos.map(d => `${d.name} (${d.min} min)`).join(', ')} — verify food was purchased.</span>
+                        </div>
+                    ` : ''}
+
                     <div class="card-header">
                         <div>
                             <div class="card-title">${escapeHtml(sub.name)}</div>
                             <div class="card-meta">
-                                Submitted: ${new Date(sub.submittedAt).toLocaleString()}
+                                Submitted: ${submittedAt.toLocaleString()}
+                                ${isLate ? ' <span style="color:#f87171;font-weight:600;">⏰ LATE</span>' : ' <span style="color:#4ade80;">✓ on time</span>'}
                             </div>
                         </div>
                         <span class="status-badge ${statusClass}">${statusText}</span>
                     </div>
-                    
+
                     <div class="info-grid">
                         <div class="info-item">
                             <label>Email</label>
@@ -608,7 +687,7 @@
                             <div class="value" style="font-family: monospace; font-size: 0.85rem;">${sub.gpxHash}</div>
                         </div>
                     </div>
-                    
+
                     <div class="info-grid">
                         <div class="info-item">
                             <label>Claimed Bonuses</label>
@@ -619,20 +698,20 @@
                             <div class="value">${escapeHtml(sub.comments) || '-'}</div>
                         </div>
                     </div>
-                    
+
                     <div class="verification-details">
                         <h4>GPS Verification Results</h4>
                         <div class="costco-mini-grid">
                             ${verificationHtml}
                         </div>
                     </div>
-                    
+
                     ${sub.status === 'pending' ? `
                         <div class="action-buttons">
                             <button class="btn btn-approve" onclick="updateStatus(${sub.id}, 'approved')">
                                 ✅ Approve
                             </button>
-                            <button class="btn btn-reject" onclick="updateStatus(${sub.id}, 'rejected')">
+                            <button class="btn btn-reject" onclick="rejectWithReason(${sub.id})">
                                 ❌ Reject
                             </button>
                             <button class="btn btn-duplicate" onclick="updateStatus(${sub.id}, 'duplicate')">
@@ -640,6 +719,17 @@
                             </button>
                         </div>
                     ` : ''}
+
+                    <div style="margin-top: 1rem;">
+                        <label style="display:block;font-size:0.8rem;color:rgba(255,255,255,0.5);margin-bottom:0.3rem;">Admin Notes (auto-saved)</label>
+                        <textarea
+                            id="note-${sub.id}"
+                            rows="3"
+                            placeholder="e.g. Emailed about low dwell time, waiting for receipt..."
+                            style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:rgba(255,255,255,0.85);padding:0.5rem 0.75rem;font-size:0.85rem;resize:vertical;"
+                            oninput="saveAdminNote(${sub.id})"
+                        >${escapeHtml(savedNote)}</textarea>
+                    </div>
 
                     ${renderMetrics(sub)}
 
@@ -659,12 +749,76 @@
                 </div>
             `;
         }
+
+        function saveAdminNote(id) {
+            const textarea = document.getElementById(`note-${id}`);
+            if (textarea) {
+                localStorage.setItem(`ggg_admin_note_${id}`, textarea.value);
+            }
+        }
+
+        // =====================================================
+        // PUBLISH RESULTS
+        // =====================================================
+
+        function publishResults() {
+            const year = parseInt(document.getElementById('publishYear').value);
+            const statusEl = document.getElementById('publishStatus');
+
+            // Only include approved submissions for the selected year
+            const approved = submissions.filter(s =>
+                s.status === 'approved' && (parseInt(s.year) === year || !s.year)
+            );
+
+            if (approved.length === 0) {
+                statusEl.textContent = `⚠️ No approved submissions found for ${year}.`;
+                return;
+            }
+
+            // Build the public-safe result objects (strip internal fields)
+            const PUBLIC_FIELDS = [
+                'name', 'rideDate', 'elapsedTime', 'avgSpeed', 'totalDistance',
+                'movingTime', 'stravaLink', 'bonuses', 'foodOrders',
+                'costcosVisited', 'ebikeUsed'
+            ];
+
+            const results = approved.map(s => {
+                const out = {};
+                PUBLIC_FIELDS.forEach(f => { if (s[f] !== undefined) out[f] = s[f]; });
+                return out;
+            });
+
+            const payload = {
+                year,
+                published: true,
+                publishedAt: new Date().toISOString(),
+                results
+            };
+
+            // Trigger browser download
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `results-${year}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            statusEl.innerHTML = `✅ Downloaded <strong>results-${year}.json</strong> with ${results.length} rider${results.length !== 1 ? 's' : ''}. `
+                + `Deploy with: <code style="font-size:0.75rem;">docker cp results-${year}.json &lt;container&gt;:/usr/share/nginx/html/</code>`;
+        }
         
         // =====================================================
         // ACTIONS
         // =====================================================
-        
-        async function updateStatus(id, newStatus) {
+
+        function rejectWithReason(id) {
+            const reason = prompt('Rejection reason (included in email to rider — leave blank to skip):');
+            if (reason === null) return; // cancelled
+            updateStatus(id, 'rejected', reason.trim());
+        }
+
+        async function updateStatus(id, newStatus, rejectionReason = '') {
             const card = document.getElementById(`submission-${id}`);
             const buttons = card.querySelectorAll('.btn');
             buttons.forEach(btn => btn.disabled = true);
@@ -683,7 +837,8 @@
                         action: 'updateStatus',
                         id: id,
                         status: newStatus,
-                        adminToken: adminToken
+                        adminToken: adminToken,
+                        ...(rejectionReason ? { rejectionReason } : {})
                     })
                 });
 

@@ -27,6 +27,9 @@ COPY SessionCo_778.jpg /usr/share/nginx/html/
 COPY Sessionco_beer.jpeg /usr/share/nginx/html/
 COPY food-court.JPG /usr/share/nginx/html/
 
+# Copy results JSON (published: false until revealed via admin panel)
+COPY results-2026.json /usr/share/nginx/html/
+
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

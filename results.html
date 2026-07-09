@@ -37,7 +37,6 @@
     <link rel="stylesheet" href="styles.css">
 
     <style>
-        /* Page-specific overrides */
         body {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             min-height: 100vh;
@@ -49,9 +48,7 @@
             align-items: center;
         }
 
-        .nav-brand {
-            text-decoration: none;
-        }
+        .nav-brand { text-decoration: none; }
 
         .nav-links a {
             color: var(--text-dark);
@@ -63,9 +60,7 @@
 
         .nav-links a:hover { color: var(--primary-color); }
 
-        .container {
-            max-width: 1100px;
-        }
+        .container { max-width: 1100px; }
 
         h1 {
             text-align: center;
@@ -74,7 +69,46 @@
             margin-bottom: 0.5rem;
         }
 
-        /* CTA section specific to results page */
+        /* Year selector */
+        .year-selector {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.25rem 0 1.75rem;
+            flex-wrap: wrap;
+        }
+
+        .year-btn {
+            padding: 0.4rem 1.2rem;
+            border: 2px solid var(--primary-color);
+            border-radius: 999px;
+            background: white;
+            color: var(--primary-color);
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            font-family: inherit;
+        }
+
+        .year-btn:hover,
+        .year-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* Coming-soon state */
+        .coming-soon {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #555;
+        }
+
+        .coming-soon .cs-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .coming-soon h2 { font-size: 1.7rem; margin-bottom: 0.5rem; color: #333; }
+        .coming-soon p { color: #777; max-width: 380px; margin: 0 auto; }
+
+        /* CTA section */
         .results-cta {
             text-align: center;
             padding: 2rem;
@@ -85,11 +119,7 @@
         }
 
         .results-cta h2 { margin-bottom: 1rem; color: white; }
-
-        .results-cta .btn {
-            background: var(--accent-color);
-            color: var(--dark);
-        }
+        .results-cta .btn { background: var(--accent-color); color: var(--dark); }
 
         .footer {
             text-align: center;
@@ -99,9 +129,6 @@
         }
 
         .footer a { color: var(--secondary-color); }
-
-        /* Loading without display:none */
-        .loading { display: block; }
 
         .ranking-note {
             font-size: 0.85rem;
@@ -117,28 +144,12 @@
             align-items: center;
         }
 
-        .ranking-sep {
-            color: var(--primary-color);
-            font-weight: 700;
-        }
+        .ranking-sep { color: var(--primary-color); font-weight: 700; }
 
-        .food-cell {
-            font-size: 0.9rem;
-            white-space: nowrap;
-            letter-spacing: 0.05em;
-        }
+        .food-cell { font-size: 0.9rem; white-space: nowrap; letter-spacing: 0.05em; }
+        .food-group { cursor: default; display: inline-block; }
 
-        .food-group {
-            cursor: default;
-            display: inline-block;
-        }
-
-        .ebike-tag {
-            font-size: 0.75rem;
-            margin-left: 0.3rem;
-            opacity: 0.75;
-            vertical-align: middle;
-        }
+        .ebike-tag { font-size: 0.75rem; margin-left: 0.3rem; opacity: 0.75; vertical-align: middle; }
 
         .ebike-divider td {
             background: #e0f2fe;
@@ -151,10 +162,14 @@
             border-bottom: 1px solid #bae6fd;
         }
 
-        /* E-bike rank numbers (E1, E2 …) — electric blue, high contrast on white */
-        .rank-ebike {
-            color: #0284c7;
-            font-weight: 900;
+        .rank-ebike { color: #0284c7; font-weight: 900; }
+
+        .published-note {
+            text-align: center;
+            font-size: 0.78rem;
+            color: #aaa;
+            margin-top: 0.5rem;
+            margin-bottom: 1.5rem;
         }
 
         @media (max-width: 768px) {
@@ -181,11 +196,12 @@
     <div class="container">
         <h1>🏆 Official Results</h1>
         <p class="subtitle">Verified completions of the Great Glizzy Gauntlet</p>
-        
-        <h2 class="year-title">2026 Season</h2>
-        
+
+        <!-- Year selector — add more years here as the event grows -->
+        <div class="year-selector" id="yearSelector"></div>
+
         <!-- Stats -->
-        <div class="stats-row" id="statsRow">
+        <div class="stats-row" id="statsRow" style="display:none;">
             <div class="stat-card">
                 <div class="number" id="totalRiders">-</div>
                 <div class="label">Total Riders</div>
@@ -203,16 +219,24 @@
                 <div class="label">Fastest Time</div>
             </div>
         </div>
-        
+
         <!-- Loading -->
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <p>Loading results...</p>
         </div>
-        
+
+        <!-- Coming soon (not yet published) -->
+        <div class="coming-soon" id="comingSoon" style="display:none;">
+            <div class="cs-icon">🏁</div>
+            <h2>Results Coming Soon</h2>
+            <p>The leaderboard will be revealed once all rides are verified. Check back soon!</p>
+        </div>
+
         <!-- Results Table -->
-        <div class="results-card" id="resultsCard" style="display: none;">
-            <h2>🌭 2026 Finishers</h2>
+        <div class="results-card" id="resultsCard" style="display:none;">
+            <h2 id="resultsHeading">🌭 2026 Finishers</h2>
+            <p class="published-note" id="publishedNote"></p>
 
             <p class="ranking-note">
                 📊 <strong>Ranking:</strong>
@@ -237,38 +261,37 @@
                         <th>Link</th>
                     </tr>
                 </thead>
-                <tbody id="resultsBody">
-                </tbody>
+                <tbody id="resultsBody"></tbody>
             </table>
 
-            <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: #f8f9fa; border-radius: 8px; font-size: 0.88rem; color: #555;">
+            <div style="margin-top:1.25rem;padding:1rem 1.25rem;background:#f8f9fa;border-radius:8px;font-size:0.88rem;color:#555;">
                 <strong>How riders are ranked:</strong>
-                <ol style="margin: 0.5rem 0 0.25rem 1.2rem; line-height: 2;">
+                <ol style="margin:0.5rem 0 0.25rem 1.2rem;line-height:2;">
                     <li><strong>Most Costcos visited</strong> — more stops always ranks higher, regardless of time</li>
                     <li><strong>Fewest food stops skipped</strong> — any skip drops you below clean eaters at the same stop count</li>
                     <li><strong>Fastest elapsed time</strong> — Costco #1 departure to Costco #10 arrival</li>
                 </ol>
-                <p style="margin: 0.25rem 0 0;">🔋 E-bike riders appear in a separate section and compete for their own category prizes.</p>
+                <p style="margin:0.25rem 0 0;">🔋 E-bike riders appear in a separate section and compete for their own category prizes.</p>
             </div>
         </div>
-        
-        <!-- Empty State -->
-        <div class="empty-state" id="emptyState" style="display: none;">
+
+        <!-- Empty (published but no approved results) -->
+        <div class="empty-state" id="emptyState" style="display:none;">
             <div class="icon">🚴</div>
-            <h3>No results yet for 2026</h3>
-            <p>The event is May 2, 2026. Be the first to complete the challenge!</p>
+            <h3 id="emptyHeading">No results yet for 2026</h3>
+            <p>Submissions are being reviewed. Check back soon!</p>
         </div>
-        
+
         <!-- CTA -->
         <div class="results-cta">
             <h2>Completed the Challenge?</h2>
-            <p style="margin-bottom: 1.5rem;">Upload your GPX file to verify your ride and get on the leaderboard!</p>
+            <p style="margin-bottom:1.5rem;">Upload your GPX file to verify your ride and get on the leaderboard!</p>
             <a href="/verify" class="btn">🔍 Verify My Ride</a>
         </div>
-        
+
         <div class="footer">
             <p>Results are verified via GPS data and approved manually.</p>
-            <p style="margin-top: 0.5rem;">
+            <p style="margin-top:0.5rem;">
                 Questions? Contact <a href="mailto:ggg@lmarx.com">ggg@lmarx.com</a>
             </p>
         </div>
@@ -278,13 +301,13 @@
         // =====================================================
         // CONFIGURATION
         // =====================================================
-        
-        const RESULTS_URL = 'https://script.google.com/macros/s/AKfycbwuMP8IkLM5bE8vGzXUyKo_n0VLn-ZOvGNGOf32HLeZ2vx5i5uXgizPw4JqSeio_Hjp/exec?action=getResults';
-        
-        // Fixed to 2026 for now
-        const CURRENT_YEAR = 2026;
-        
-        // Food emoji mapping (matches verify.html MENU_ITEMS values)
+
+        // Add a new year entry here each season. The first entry is the default.
+        const YEARS = [
+            { year: 2026, label: '2026' },
+        ];
+
+        // Food emoji / label mappings
         const FOOD_EMOJI_MAP = {
             'hotdog':              '🌭',
             'pizza':               '🍕',
@@ -299,7 +322,6 @@
             'skipped':             '⏭️'
         };
 
-        // Food label mapping for hover tooltips
         const FOOD_LABEL_MAP = {
             'hotdog':              'Hot Dog',
             'pizza':               'Pizza Slice',
@@ -314,257 +336,244 @@
             'skipped':             'Skipped'
         };
 
-        // Badge mapping
         const BADGE_MAP = {
-            'hotdog_purist': { label: '🌭', title: 'Hot Dog Purist', class: 'badge-hotdog' },
-            'pizza_party': { label: '🍕', title: 'Pizza Party', class: 'badge-pizza' },
-            'menu_master': { label: '🎭', title: 'Menu Master', class: 'badge-menu' },
-            'sample_collector': { label: '🧪', title: 'Sample Collector', class: 'badge-sample' },
-            'speed_demon': { label: '⚡', title: 'Speed Demon', class: 'badge-speed' },
-            'spanish_fork': { label: '🏔️', title: 'Spanish Fork', class: 'badge-spanish' }
+            'hotdog_purist':   { label: '🌭', title: 'Hot Dog Purist',    class: 'badge-hotdog'  },
+            'pizza_party':     { label: '🍕', title: 'Pizza Party',       class: 'badge-pizza'   },
+            'menu_master':     { label: '🎭', title: 'Menu Master',       class: 'badge-menu'    },
+            'sample_collector':{ label: '🧪', title: 'Sample Collector',  class: 'badge-sample'  },
+            'speed_demon':     { label: '⚡', title: 'Speed Demon',       class: 'badge-speed'   },
+            'spanish_fork':    { label: '🏔️', title: 'Spanish Fork',      class: 'badge-spanish' }
         };
-        
+
         // =====================================================
         // INITIALIZATION
         // =====================================================
-        
+
+        let activeYear = YEARS[0].year;
+
         document.addEventListener('DOMContentLoaded', () => {
-            loadResults(CURRENT_YEAR);
+            buildYearButtons();
+            loadYear(activeYear);
         });
-        
-        // =====================================================
-        // DATA LOADING
-        // =====================================================
-        
-        async function loadResults(year) {
-            const loading = document.getElementById('loading');
-            const resultsCard = document.getElementById('resultsCard');
-            const emptyState = document.getElementById('emptyState');
-            
-            loading.style.display = 'block';
-            resultsCard.style.display = 'none';
-            emptyState.style.display = 'none';
-            
-            try {
-                let data;
-                
-                try {
-                    const response = await fetch(`${RESULTS_URL}&year=${year}`);
-                    data = await response.json();
-                } catch (fetchError) {
-                    console.log('API not available, showing empty state');
-                    data = [];
-                }
-                
-                loading.style.display = 'none';
-                
-                if (!data || data.length === 0) {
-                    emptyState.style.display = 'block';
-                    updateStats([], year);
-                } else {
-                    resultsCard.style.display = 'block';
-                    displayResults(data, year);
-                    updateStats(data, year);
-                }
-                
-            } catch (err) {
-                console.error('Error loading results:', err);
-                loading.style.display = 'none';
-                emptyState.style.display = 'block';
-            }
+
+        function buildYearButtons() {
+            const container = document.getElementById('yearSelector');
+            YEARS.forEach(({ year, label }) => {
+                const btn = document.createElement('button');
+                btn.className = 'year-btn' + (year === activeYear ? ' active' : '');
+                btn.textContent = label;
+                btn.addEventListener('click', () => {
+                    if (year === activeYear) return;
+                    activeYear = year;
+                    container.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    loadYear(year);
+                });
+                container.appendChild(btn);
+            });
         }
-        
-        function updateStats(data, year) {
-            document.getElementById('totalRiders').textContent = data.length || '0';
-            document.getElementById('fullCompletions').textContent = 
-                data.filter(r => r.costcosVisited >= 10).length || '0';
-            document.getElementById('spanishForkCount').textContent = 
+
+        // =====================================================
+        // DATA LOADING — reads static /results-YEAR.json
+        // =====================================================
+
+        async function loadYear(year) {
+            const loading     = document.getElementById('loading');
+            const comingSoon  = document.getElementById('comingSoon');
+            const resultsCard = document.getElementById('resultsCard');
+            const emptyState  = document.getElementById('emptyState');
+            const statsRow    = document.getElementById('statsRow');
+
+            // Reset all panels
+            loading.style.display     = 'block';
+            comingSoon.style.display  = 'none';
+            resultsCard.style.display = 'none';
+            emptyState.style.display  = 'none';
+            statsRow.style.display    = 'none';
+
+            let payload;
+            try {
+                const res = await fetch(`/results-${year}.json`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                payload = await res.json();
+            } catch (err) {
+                // File not found or parse error → treat as not yet published
+                loading.style.display    = 'none';
+                comingSoon.style.display = 'block';
+                return;
+            }
+
+            loading.style.display = 'none';
+
+            // Payload must have published:true to show results
+            if (!payload.published) {
+                comingSoon.style.display = 'block';
+                return;
+            }
+
+            const results = payload.results || [];
+
+            if (results.length === 0) {
+                document.getElementById('emptyHeading').textContent = `No results yet for ${year}`;
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            // Render
+            document.getElementById('resultsHeading').textContent = `🌭 ${year} Finishers`;
+            if (payload.publishedAt) {
+                const d = new Date(payload.publishedAt);
+                document.getElementById('publishedNote').textContent =
+                    `Published ${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+            }
+
+            statsRow.style.display    = '';
+            resultsCard.style.display = 'block';
+            updateStats(results);
+            displayResults(results, year);
+        }
+
+        // =====================================================
+        // STATS
+        // =====================================================
+
+        function updateStats(data) {
+            document.getElementById('totalRiders').textContent      = data.length || '0';
+            document.getElementById('fullCompletions').textContent  =
+                data.filter(r => parseInt(r.costcosVisited) >= 10).length || '0';
+            document.getElementById('spanishForkCount').textContent =
                 data.filter(r => r.bonuses && r.bonuses.includes('spanish_fork')).length || '0';
-            
-            // Find fastest time — only riders who visited all 10 Costcos AND ate at all 10 (no skips)
+
+            // Fastest time: all 10 Costcos, no food skips
             const times = data
                 .filter(r => {
                     if (parseInt(r.costcosVisited) !== 10) return false;
                     try {
                         const orders = JSON.parse(r.foodOrders || '{}');
-                        return Object.values(orders).filter(v => v === 'skipped').length === 0;
-                    } catch (e) { return false; }
+                        return !Object.values(orders).includes('skipped');
+                    } catch { return false; }
                 })
                 .map(r => {
-                    // Try elapsedTime first (milliseconds format)
                     let ms = parseInt(r.elapsedTime);
-                    if (!isNaN(ms) && ms > 1000000) {
-                        return { ms, formatted: formatMovingTime(ms) };
-                    }
-                    // Fall back to movingTime
+                    if (!isNaN(ms) && ms > 1000000) return { ms, fmt: fmtMs(ms) };
                     ms = parseInt(r.movingTime);
-                    if (!isNaN(ms) && ms > 0) {
-                        return { ms, formatted: formatMovingTime(ms) };
-                    }
+                    if (!isNaN(ms) && ms > 0) return { ms, fmt: fmtMs(ms) };
                     return null;
                 })
-                .filter(t => t && t.formatted)
+                .filter(Boolean)
                 .sort((a, b) => a.ms - b.ms);
 
-            document.getElementById('fastestTime').textContent = times[0]?.formatted || '-';
+            document.getElementById('fastestTime').textContent = times[0]?.fmt || '-';
         }
-        
+
+        // =====================================================
+        // TABLE RENDERING
+        // =====================================================
+
         function displayResults(data, year) {
             const tbody = document.getElementById('resultsBody');
 
-            const isEbike = (r) => r.ebikeUsed === true || r.ebikeUsed === 'true' || r.ebikeUsed === 'TRUE';
-
-            const getSkipCount = (r) => {
-                if (!r.foodOrders) return 0;
-                try {
-                    const orders = JSON.parse(r.foodOrders);
-                    return Object.values(orders).filter(v => v === 'skipped').length;
-                } catch (e) { return 0; }
-            };
-
-            const getTime = (r) => {
-                const elapsed = parseInt(r.elapsedTime);
-                if (!isNaN(elapsed) && elapsed > 1000000) return elapsed;
-                const moving = parseInt(r.movingTime);
-                if (!isNaN(moving) && moving > 0) return moving;
-                return Infinity;
-            };
-
-            // Ranking comparator: costcos visited → fewest skips → fastest time
-            const rankSort = (a, b) => {
+            const isEbike     = r => r.ebikeUsed === true || r.ebikeUsed === 'true' || r.ebikeUsed === 'TRUE';
+            const getSkips    = r => { try { return Object.values(JSON.parse(r.foodOrders||'{}')).filter(v=>v==='skipped').length; } catch { return 0; } };
+            const getTime     = r => { const e=parseInt(r.elapsedTime); if(!isNaN(e)&&e>1000000) return e; const m=parseInt(r.movingTime); return (!isNaN(m)&&m>0)?m:Infinity; };
+            const rankSort    = (a, b) => {
                 if (b.costcosVisited !== a.costcosVisited) return b.costcosVisited - a.costcosVisited;
-                const skipDiff = getSkipCount(a) - getSkipCount(b);
-                if (skipDiff !== 0) return skipDiff;
+                const sd = getSkips(a) - getSkips(b);
+                if (sd !== 0) return sd;
                 return getTime(a) - getTime(b);
             };
 
-            // Split into human-powered and e-bike, each sorted by the same ranking
-            const humanRiders = data.filter(r => !isEbike(r)).sort(rankSort);
-            const ebikeRiders = data.filter(r =>  isEbike(r)).sort(rankSort);
+            const humans = data.filter(r => !isEbike(r)).sort(rankSort);
+            const ebikes = data.filter(r =>  isEbike(r)).sort(rankSort);
 
-            const buildRow = (rider, rank, rankLabel) => {
-                // E-bike rows get their own class; human rows use gold/silver/bronze for top 3
-                const rankClass = rankLabel !== null ? 'rank-ebike' : (rank <= 3 ? `rank-${rank}` : '');
-                const rankIcon = rankLabel !== null ? rankLabel
+            const buildRow = (rider, rank, eRank) => {
+                const rankClass = eRank != null ? 'rank-ebike' : (rank <= 3 ? `rank-${rank}` : '');
+                const rankIcon  = eRank != null ? `E${eRank}`
                     : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank);
 
-                const costcoClass = rider.costcosVisited >= 10 ? 'complete' : '';
-
                 const badges = (rider.bonuses || []).map(b => {
-                    const badge = BADGE_MAP[b];
-                    return badge ? `<span class="badge ${badge.class}" title="${badge.title}">${badge.label}</span>` : '';
+                    const bd = BADGE_MAP[b];
+                    return bd ? `<span class="badge ${bd.class}" title="${bd.title}">${bd.label}</span>` : '';
                 }).join('');
 
-                const stravaLink = rider.stravaLink
-                    ? `<a href="${rider.stravaLink}" target="_blank" class="strava-link">View</a>`
-                    : '-';
+                const strava = rider.stravaLink
+                    ? `<a href="${escapeHtml(rider.stravaLink)}" target="_blank" class="strava-link">View</a>` : '-';
 
-                const ebikeTag = isEbike(rider) ? `<span class="ebike-tag" title="E-Bike">🔋</span>` : '';
+                const eTag = isEbike(rider) ? `<span class="ebike-tag" title="E-Bike">🔋</span>` : '';
 
-                return `
-                    <tr>
-                        <td class="rank ${rankClass}">${rankIcon}</td>
-                        <td class="rider-name">${escapeHtml(rider.name)}${ebikeTag}</td>
-                        <td>${formatDate(rider.rideDate)}</td>
-                        <td class="costco-count ${costcoClass}">${rider.costcosVisited}/10</td>
-                        <td class="time-cell">${formatElapsedTime(rider.elapsedTime) || formatMovingTime(rider.movingTime) || '-'}</td>
-                        <td class="speed-cell">${rider.avgSpeed || '-'}</td>
-                        <td class="food-cell">${renderFoodSummary(rider.foodOrders)}</td>
-                        <td>${badges || '-'}</td>
-                        <td>${stravaLink}</td>
-                    </tr>
-                `;
+                return `<tr>
+                    <td class="rank ${rankClass}">${rankIcon}</td>
+                    <td class="rider-name">${escapeHtml(rider.name)}${eTag}</td>
+                    <td>${fmtDate(rider.rideDate)}</td>
+                    <td class="costco-count ${parseInt(rider.costcosVisited)>=10?'complete':''}">${rider.costcosVisited}/10</td>
+                    <td class="time-cell">${fmtElapsed(rider.elapsedTime) || fmtMs(rider.movingTime) || '-'}</td>
+                    <td class="speed-cell">${rider.avgSpeed || '-'}</td>
+                    <td class="food-cell">${renderFood(rider.foodOrders)}</td>
+                    <td>${badges || '-'}</td>
+                    <td>${strava}</td>
+                </tr>`;
             };
 
-            const humanRows = humanRiders.map((rider, i) => buildRow(rider, i + 1, null));
+            const divider = ebikes.length > 0
+                ? `<tr class="ebike-divider"><td colspan="9">🔋 E-Bike Category &mdash; separate prizes</td></tr>` : '';
 
-            const dividerRow = ebikeRiders.length > 0
-                ? `<tr class="ebike-divider"><td colspan="9">🔋 E-Bike Category &mdash; separate prizes</td></tr>`
-                : '';
-
-            const ebikeRows = ebikeRiders.map((rider, i) => buildRow(rider, i + 1, `E${i + 1}`));
-
-            tbody.innerHTML = humanRows.join('') + dividerRow + ebikeRows.join('');
+            tbody.innerHTML =
+                humans.map((r, i) => buildRow(r, i + 1, null)).join('') +
+                divider +
+                ebikes.map((r, i) => buildRow(r, i + 1, i + 1)).join('');
         }
-        
+
         // =====================================================
         // UTILITIES
         // =====================================================
-        
-        function formatMovingTime(ms) {
-            if (!ms || ms === '-' || ms === 0) return null;
 
-            // Convert milliseconds to H:MM:SS format
-            const totalMs = parseInt(ms);
-            if (isNaN(totalMs)) return null;
-
-            const hours = Math.floor(totalMs / (1000 * 60 * 60));
-            const minutes = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((totalMs % (1000 * 60)) / 1000);
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        function fmtMs(ms) {
+            const n = parseInt(ms);
+            if (!n || isNaN(n) || n <= 0) return null;
+            const h = Math.floor(n / 3600000);
+            const m = Math.floor((n % 3600000) / 60000);
+            const s = Math.floor((n % 60000) / 1000);
+            return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
         }
 
-        function formatElapsedTime(value) {
-            if (!value || value === '-') return null;
-
-            // Handle milliseconds (new format)
-            const ms = parseInt(value);
-            if (!isNaN(ms) && ms > 1000000) {
-                // Likely milliseconds (>16 minutes)
-                return formatMovingTime(ms);
+        function fmtElapsed(v) {
+            if (!v || v === '-') return null;
+            const ms = parseInt(v);
+            if (!isNaN(ms) && ms > 1000000) return fmtMs(ms);
+            if (typeof v === 'string' && v.includes(':')) {
+                const parts = v.split(':');
+                return parts.length === 2 ? `${parts[0]}:${parts[1].padStart(2,'0')}:00` : v;
             }
-
-            // Handle legacy H:MM format - convert to H:MM:SS
-            if (typeof value === 'string' && value.includes(':')) {
-                const parts = value.split(':');
-                if (parts.length === 2) {
-                    // Legacy H:MM format, add :00 for seconds
-                    return `${parts[0]}:${parts[1].padStart(2, '0')}:00`;
-                }
-                return value; // Already H:MM:SS or other format
-            }
-
             return null;
         }
-        
-        function renderFoodSummary(foodOrdersJson) {
+
+        function renderFood(foodOrdersJson) {
             if (!foodOrdersJson) return '-';
             try {
                 const orders = JSON.parse(foodOrdersJson);
-                const counts = {};
                 const ORDER = ['hotdog','pizza','chicken_bake','calzone','turkey_sandwich',
                                'chicken_salad','cold_brew_mocha','strawberry_smoothie','ice_cream','cookie','skipped'];
-                Object.values(orders).forEach(item => {
-                    counts[item] = (counts[item] || 0) + 1;
-                });
-                const result = ORDER
-                    .filter(key => counts[key] > 0)
-                    .map(key => {
-                        const emoji  = FOOD_EMOJI_MAP[key]  || '❓';
-                        const label  = FOOD_LABEL_MAP[key]  || key;
-                        const count  = counts[key];
-                        const display    = count > 1 ? `${emoji}×${count}` : emoji;
-                        const titleText  = count > 1 ? `${label} ×${count}` : label;
-                        return `<span class="food-group" title="${titleText}">${display}</span>`;
-                    })
-                    .join(' ');
-                return result || '-';
-            } catch (e) {
-                return '-';
-            }
+                const counts = {};
+                Object.values(orders).forEach(item => { counts[item] = (counts[item] || 0) + 1; });
+                return ORDER
+                    .filter(k => counts[k] > 0)
+                    .map(k => {
+                        const n = counts[k];
+                        return `<span class="food-group" title="${FOOD_LABEL_MAP[k]||k}${n>1?' ×'+n:''}">${FOOD_EMOJI_MAP[k]||'❓'}${n>1?'×'+n:''}</span>`;
+                    }).join(' ') || '-';
+            } catch { return '-'; }
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function escapeHtml(t) {
+            if (!t) return '';
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
         }
-        
-        function formatDate(dateStr) {
-            if (!dateStr) return '-';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        function fmtDate(s) {
+            if (!s) return '-';
+            return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
     </script>
 </body>

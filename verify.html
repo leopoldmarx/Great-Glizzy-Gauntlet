@@ -526,12 +526,17 @@
                 stats.rideDate = firstPointWithTime.time;
             }
 
-            // Calculate total distance
+            // Calculate total distance, skipping segments caused by GPS pause/resume jumps.
+            // A gap > 2 min between timestamps = paused Garmin; the straight-line jump
+            // would inflate distance so we exclude it from the total.
+            const GPS_PAUSE_GAP_MS = 120000; // 2 minutes
             for (let i = 1; i < points.length; i++) {
-                stats.totalDistance += haversineDistance(
-                    points[i-1].lat, points[i-1].lon,
-                    points[i].lat,   points[i].lon
-                );
+                const p0 = points[i - 1], p1 = points[i];
+                if (p0.time && p1.time) {
+                    const gap = p1.time - p0.time;
+                    if (gap > GPS_PAUSE_GAP_MS) continue; // skip the jump segment
+                }
+                stats.totalDistance += haversineDistance(p0.lat, p0.lon, p1.lat, p1.lon);
             }
 
             // Find challenge timing using the FIRST and LAST visited Costcos (in route order).
@@ -717,17 +722,18 @@
             const enabledSelects = Array.from(document.querySelectorAll('.food-order-select:not([disabled])'));
             const selections = enabledSelects.map(s => s.value);
             const allFilled = selections.length > 0 && selections.every(v => v !== '');
+            const allTenVisited = enabledSelects.length === COSTCOS.length;
 
-            // Hot Dog Purist: every Costco you visited had a hot dog (partial completers count)
-            const isHotDogPurist = allFilled && selections.every(v => v === 'hotdog');
+            // Hot Dog Purist: must visit all 10 Costcos and have a hot dog at each
+            const isHotDogPurist = allFilled && allTenVisited && selections.every(v => v === 'hotdog');
 
-            // Pizza Party: every Costco you visited had pizza (partial completers count)
-            const isPizzaParty = allFilled && selections.every(v => v === 'pizza');
+            // Pizza Party: must visit all 10 Costcos and have pizza at each
+            const isPizzaParty = allFilled && allTenVisited && selections.every(v => v === 'pizza');
 
-            // Menu Master: all visited stops filled, none skipped, all unique items
+            // Menu Master: must visit all 10 Costcos, no skips, all unique items
             const noneSkipped = selections.every(v => v !== 'skipped');
             const uniqueCount = new Set(selections.filter(v => v !== '')).size;
-            const isMenuMaster = allFilled && noneSkipped && uniqueCount === selections.length;
+            const isMenuMaster = allFilled && allTenVisited && noneSkipped && uniqueCount === selections.length;
 
             applyFoodBonus('hotDogPuristBonus', 'hotDogPuristLabel', isHotDogPurist, allFilled);
             applyFoodBonus('pizzaPartyBonus',   'pizzaPartyLabel',   isPizzaParty,   allFilled);
